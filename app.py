@@ -1754,7 +1754,7 @@ if __name__ == '__main__':
     econ_monitor.start_monitor()
 
     socketio.run(
-        app,
+        app, allow_unsafe_werkzeug=True,
         host='0.0.0.0',
         port=Config.FLASK_PORT,
         debug=False,

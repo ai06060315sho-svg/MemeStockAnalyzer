@@ -130,7 +130,8 @@ class StockScanner:
 
         print(f"[Scanner] Scanning {len(tickers)} tickers for volume spikes...")
         alerts = []
-        batch_size = 30  # e2-micro(1GB RAM)対応: メモリ節約のため小バッチ
+        batch_size = 15  # e2-micro(1GB RAM)対応: 小バッチ+GC
+        import gc
 
         for i in range(0, len(tickers), batch_size):
             batch = tickers[i:i + batch_size]
@@ -140,7 +141,7 @@ class StockScanner:
                 for _retry in range(3):
                     try:
                         data = yf.download(batch, period='30d', progress=False,
-                                           threads=True, ignore_tz=True,
+                                           threads=False, ignore_tz=True,
                                            prepost=True)
                         break
                     except Exception as _e:
@@ -150,6 +151,7 @@ class StockScanner:
                         else:
                             raise
                 if data is None or data.empty:
+                    gc.collect()
                     continue
 
                 volume = data.get('Volume')
@@ -264,8 +266,12 @@ class StockScanner:
             except Exception as e:
                 print(f"[Scanner] Scan batch error: {e}")
                 continue
+            finally:
+                # メモリ解放（e2-micro対応）
+                data = None
+                gc.collect()
 
-            time.sleep(5)  # バッチ間5秒待機（レート制限対策）
+            time.sleep(3)  # バッチ間待機
 
         # ユニバースから業種情報を付加
         if self.db:

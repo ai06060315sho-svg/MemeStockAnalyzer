@@ -1348,6 +1348,31 @@ def run_scan():
             print(f"[Scan] Universe: {len(universe)} tickers "
                   f"(+{len(watched_tickers)} from watchlist)")
 
+        # メモリ節約: $1以下を優先スキャン、$1-$5は別バッチ
+        # DBから価格情報を取得して分類
+        import gc
+        priority_tickers = []  # $1以下（鉄板パターン対象）
+        secondary_tickers = []  # $1-$5
+        try:
+            conn = db._get_conn()
+            price_rows = conn.execute("""
+                SELECT ticker, price FROM stock_alerts
+                WHERE id IN (SELECT MAX(id) FROM stock_alerts GROUP BY ticker)
+            """).fetchall()
+            price_map = {r[0]: r[1] for r in price_rows}
+            conn.close()
+            for t in universe:
+                p = price_map.get(t, 0)
+                if p > 0 and p >= 1.0:
+                    secondary_tickers.append(t)
+                else:
+                    priority_tickers.append(t)
+        except Exception:
+            priority_tickers = universe
+            secondary_tickers = []
+
+        print(f"[Scan] Priority(<$1): {len(priority_tickers)}, Secondary($1-5): {len(secondary_tickers)}")
+
         # 2. プレマーケット/アフターマーケット検出
         now_et = datetime.now(EST)
         is_premarket = now_et.hour < 10
@@ -1377,7 +1402,14 @@ def run_scan():
                 logger.error(f"{session} scan error: {e}")
 
         # 3. 出来高スパイク + 価格急騰検出
-        volume_alerts = scanner.scan_volume_spikes(universe)
+        # メモリ節約: $1以下を先にスキャン → メモリ解放 → $1以上をスキャン
+        volume_alerts = scanner.scan_volume_spikes(priority_tickers)
+        gc.collect()
+        if secondary_tickers:
+            volume_alerts_2 = scanner.scan_volume_spikes(secondary_tickers)
+            volume_alerts.extend(volume_alerts_2)
+            del volume_alerts_2
+            gc.collect()
 
         # 4. フロート分析（アラートが出た銘柄のみ、効率化）
         if volume_alerts:

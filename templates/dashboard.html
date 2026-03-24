@@ -1106,15 +1106,48 @@ function renderFilteredResults() {
         return Math.max(0, Math.min(5, stars));
     }
 
-    // 価格帯の集計
-    const wins = filtered.filter(r => r.result === 'WIN').length;
-    const total = filtered.filter(r => r.result === 'WIN' || r.result === 'LOSS').length;
-    const wr = total > 0 ? Math.round(wins/total*100) : 0;
-    const header = currentResultPriceFilter !== 'all'
-        ? `<div style="padding:6px 10px;font-size:12px;color:#ffd700;background:#1a180a;border-bottom:1px solid #1a2840;">$${currentResultPriceFilter} | ${total}件確定 | 成功率 ${wr}% (${wins}/${total})</div>`
-        : '';
+    // 統計サマリー（常時表示）
+    const decided = filtered.filter(r => r.result === 'WIN' || r.result === 'LOSS');
+    const wins = decided.filter(r => r.result === 'WIN').length;
+    const losses = decided.length - wins;
+    const pending = filtered.filter(r => r.result === 'PENDING').length;
+    const wr = decided.length > 0 ? Math.round(wins/decided.length*100) : 0;
+    const decidedGains = decided.map(r => r.max_gain_pct || 0);
+    const avgGain = decidedGains.length > 0 ? (decidedGains.reduce((a,b) => a+b, 0) / decidedGains.length) : 0;
+    const winGains = decided.filter(r => r.result === 'WIN').map(r => r.max_gain_pct || 0);
+    const avgWinGain = winGains.length > 0 ? (winGains.reduce((a,b) => a+b, 0) / winGains.length) : 0;
+    const allGains = filtered.filter(r => r.max_gain_pct != null).map(r => r.max_gain_pct);
+    const maxGainAll = allGains.length > 0 ? Math.max(...allGains) : 0;
+    const priceLabel = currentResultPriceFilter !== 'all' ? `$${currentResultPriceFilter}` : '全価格帯';
 
-    el.innerHTML = header + filtered.map(r => {
+    const statsHeader = `<div style="padding:10px 12px;background:linear-gradient(135deg,#0d1b2e,#121a2e);border-bottom:2px solid #1a2840;">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:6px;">
+            <span style="font-size:13px;font-weight:700;color:#c8d8f0;">${priceLabel}</span>
+            <span style="font-size:12px;color:#6880a0;">検知 <b style="color:#c8d8f0;">${filtered.length}</b>件</span>
+            <span style="font-size:12px;color:#6880a0;">判定済 <b style="color:#c8d8f0;">${decided.length}</b>件</span>
+            <span style="font-size:12px;color:#6880a0;">追跡中 <b style="color:#3d9eff;">${pending}</b>件</span>
+        </div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;">
+            <div style="text-align:center;padding:6px 14px;background:#0a1220;border-radius:6px;min-width:80px;">
+                <div style="font-size:22px;font-weight:900;color:${wr >= 70 ? '#00e5a0' : wr >= 50 ? '#ffaa00' : '#ff4560'};">${wr}%</div>
+                <div style="font-size:10px;color:#6880a0;">成功率 (${wins}勝${losses}敗)</div>
+            </div>
+            <div style="text-align:center;padding:6px 14px;background:#0a1220;border-radius:6px;min-width:80px;">
+                <div style="font-size:22px;font-weight:900;color:${avgGain >= 0 ? '#00e5a0' : '#ff4560'};">${avgGain >= 0 ? '+' : ''}${avgGain.toFixed(1)}%</div>
+                <div style="font-size:10px;color:#6880a0;">平均最大上昇</div>
+            </div>
+            <div style="text-align:center;padding:6px 14px;background:#0a1220;border-radius:6px;min-width:80px;">
+                <div style="font-size:22px;font-weight:900;color:#00e5a0;">${avgWinGain >= 0 ? '+' : ''}${avgWinGain.toFixed(1)}%</div>
+                <div style="font-size:10px;color:#6880a0;">成功時の平均</div>
+            </div>
+            <div style="text-align:center;padding:6px 14px;background:#0a1220;border-radius:6px;min-width:80px;">
+                <div style="font-size:22px;font-weight:900;color:#ff0066;">+${maxGainAll.toFixed(0)}%</div>
+                <div style="font-size:10px;color:#6880a0;">最大上昇</div>
+            </div>
+        </div>
+    </div>`;
+
+    el.innerHTML = statsHeader + filtered.map(r => {
         const date = ((r.created_at||'').slice(5,16).replace(' ',' ')) + ' JST';
         const company = (r.company_name||'').trim();
         const maxG = r.max_gain_pct;
@@ -1127,19 +1160,23 @@ function renderFilteredResults() {
         if (maxG != null) {
             const barW = Math.min(Math.max(maxG, 0), 200) / 2;
             const barColor = maxG >= 50 ? '#ff0066' : maxG >= 20 ? '#ff6600' : maxG >= 10 ? '#ffaa00' : maxG > 0 ? '#00e5a050' : '#ff456030';
-            gainBar = `<div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
-                <span style="font-size:10px;color:#4a6080;min-width:55px;">検知後上昇</span>
-                <div style="flex:1;height:16px;background:#0a1220;border-radius:3px;overflow:hidden;position:relative;">
+            gainBar = `<div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
+                <span style="font-size:10px;color:#4a6080;min-width:55px;">最大上昇</span>
+                <div style="flex:1;height:18px;background:#0a1220;border-radius:3px;overflow:hidden;position:relative;">
                     <div style="width:${barW}%;height:100%;background:${barColor};border-radius:3px;"></div>
-                    <span style="position:absolute;left:4px;top:1px;font-size:11px;font-weight:700;color:#fff;">${maxG>=0?'+':''}${maxG.toFixed(1)}%</span>
+                    <span style="position:absolute;left:4px;top:1px;font-size:12px;font-weight:700;color:#fff;">${maxG>=0?'+':''}${maxG.toFixed(1)}%</span>
                 </div>
-                ${r.max_price_7d ? `<span style="font-size:11px;color:#6880a0;">最高\$${r.max_price_7d.toFixed(2)}${r.max_price_date ? ' ('+r.max_price_date+')' : ''}</span>` : ''}
+                ${r.max_price_7d ? `<span style="font-size:12px;font-weight:700;color:${maxG >= 25 ? '#00e5a0' : '#ff6600'};">$${r.max_price_7d.toFixed(3)}</span>` : ''}
+                ${r.max_price_date ? `<span style="font-size:10px;color:#6880a0;">(${r.max_price_date})</span>` : ''}
             </div>`;
         }
         const starsHtml = rating > 0 ? `<span style="font-size:12px;color:#ffaa00;letter-spacing:1px;">${'★'.repeat(rating)}${'☆'.repeat(5-rating)}</span>` : '';
         let floatHtml = '';
         if (fl === 'ULTRA_LOW') floatHtml = `<span style="font-size:9px;padding:1px 6px;border-radius:4px;background:#ff006620;color:#ff0066;">超低フロート</span>`;
         else if (fl === 'LOW') floatHtml = `<span style="font-size:9px;padding:1px 6px;border-radius:4px;background:#ff660020;color:#ff6600;">低フロート</span>`;
+
+        // 検知時 → 最高値の価格変化を計算
+        const priceChange = (r.max_price_7d && r.entry_price) ? `$${r.entry_price.toFixed(3)} → $${r.max_price_7d.toFixed(3)}` : '';
 
         return `<div class="result-card" style="${rating >= 3 ? 'border-left:3px solid #ff6600;' : rating >= 2 ? 'border-left:3px solid #ffaa00;' : ''}">
             <div class="result-top">
@@ -1151,17 +1188,32 @@ function renderFilteredResults() {
             <div class="result-meta">
                 <span>${company}</span>
                 <span>${tl2[r.alert_type]||''}</span>
-                ${r.volume_ratio ? `<span>出来高${r.volume_ratio.toFixed(1)}x</span>` : ''}
-                <span>スコア${r.score||0}</span>
+                ${r.volume_ratio ? `<span>出来高 <b style="color:#ff6600;">${r.volume_ratio.toFixed(1)}x</b></span>` : ''}
+                <span>スコア <b style="color:#ffaa00;">${r.score||0}</b></span>
                 ${alreadyUp > 5 ? `<span style="color:#ff4560;">検知時+${alreadyUp.toFixed(0)}%</span>` : ''}
             </div>
-            <div style="display:flex;gap:4px;align-items:center;margin:4px 0;">
-                <span style="font-size:11px;color:#4a6080;">検知価格</span>
-                <span style="font-size:14px;font-weight:700;">$${(r.entry_price||0).toFixed(2)}</span>
-                <span style="font-size:11px;color:#4a6080;margin-left:8px;">→ 1日後</span>
-                <span style="font-size:14px;font-weight:700;">${c1d != null ? `<span class="${c1d>=0?'pct-up':'pct-down'}">${c1d>=0?'+':''}${c1d.toFixed(1)}%</span>` : '<span class="pct-flat">---</span>'}</span>
-                <span style="font-size:11px;color:#4a6080;margin-left:8px;">3日後</span>
-                <span style="font-size:14px;font-weight:700;">${pct(r.change_3d_pct)}</span>
+            <div style="display:flex;gap:6px;align-items:center;margin:6px 0;padding:6px 8px;background:#0a1220;border-radius:4px;flex-wrap:wrap;">
+                <div style="text-align:center;min-width:70px;">
+                    <div style="font-size:10px;color:#4a6080;">検知価格</div>
+                    <div style="font-size:15px;font-weight:700;color:#c8d8f0;">$${(r.entry_price||0).toFixed(3)}</div>
+                </div>
+                <span style="color:#4a6080;font-size:16px;">→</span>
+                <div style="text-align:center;min-width:60px;">
+                    <div style="font-size:10px;color:#4a6080;">1日後</div>
+                    <div style="font-size:15px;font-weight:700;">${c1d != null ? `<span class="${c1d>=0?'pct-up':'pct-down'}">${c1d>=0?'+':''}${c1d.toFixed(1)}%</span>` : '<span class="pct-flat">---</span>'}</div>
+                </div>
+                <div style="text-align:center;min-width:60px;">
+                    <div style="font-size:10px;color:#4a6080;">3日後</div>
+                    <div style="font-size:15px;font-weight:700;">${pct(r.change_3d_pct)}</div>
+                </div>
+                <div style="text-align:center;min-width:60px;">
+                    <div style="font-size:10px;color:#4a6080;">7日後</div>
+                    <div style="font-size:15px;font-weight:700;">${pct(r.change_7d_pct)}</div>
+                </div>
+                ${r.max_price_7d ? `<div style="text-align:center;min-width:80px;margin-left:auto;">
+                    <div style="font-size:10px;color:#4a6080;">最高値</div>
+                    <div style="font-size:15px;font-weight:900;color:${(maxG||0) >= 25 ? '#00e5a0' : '#ff6600'};">$${r.max_price_7d.toFixed(3)}</div>
+                </div>` : ''}
             </div>
             ${gainBar}
         </div>`;

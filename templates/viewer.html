@@ -551,18 +551,87 @@ async function loadResults(filter, sort, btn) {
         var resp = await fetch('/api/tracking/list?filter=' + filter + '&sort=' + sort + '&limit=100');
         var rows = await resp.json();
         if (!rows.length || rows.error) { el.innerHTML = '<div class="empty">データなし</div>'; return; }
-        el.innerHTML = rows.map(function (r) {
+
+        // 統計サマリーを計算
+        var decided = rows.filter(function(r) { return r.result === 'WIN' || r.result === 'LOSS'; });
+        var winCount = decided.filter(function(r) { return r.result === 'WIN'; }).length;
+        var lossCount = decided.length - winCount;
+        var pendingCount = rows.filter(function(r) { return r.result === 'PENDING'; }).length;
+        var winRate = decided.length > 0 ? Math.round(winCount / decided.length * 100) : 0;
+        var gains = decided.map(function(r) { return r.max_gain_pct || 0; });
+        var avgGain = gains.length > 0 ? gains.reduce(function(a,b) { return a+b; }, 0) / gains.length : 0;
+        var winGains = decided.filter(function(r) { return r.result === 'WIN'; }).map(function(r) { return r.max_gain_pct || 0; });
+        var avgWinGain = winGains.length > 0 ? winGains.reduce(function(a,b) { return a+b; }, 0) / winGains.length : 0;
+        var allGains = rows.filter(function(r) { return r.max_gain_pct != null; }).map(function(r) { return r.max_gain_pct; });
+        var maxGainAll = allGains.length > 0 ? Math.max.apply(null, allGains) : 0;
+
+        var wrColor = winRate >= 70 ? '#00e5a0' : winRate >= 50 ? '#ffaa00' : '#ff4560';
+        var statsHtml = '<div style="padding:10px 12px;background:linear-gradient(135deg,#0d1b2e,#121a2e);border-bottom:2px solid #1a2840;">' +
+            '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">' +
+            '<span style="font-size:12px;color:#6880a0;">検知 <b style="color:#c8d8f0;">' + rows.length + '</b>件</span>' +
+            '<span style="font-size:12px;color:#6880a0;">判定済 <b style="color:#c8d8f0;">' + decided.length + '</b>件</span>' +
+            '<span style="font-size:12px;color:#6880a0;">追跡中 <b style="color:#3d9eff;">' + pendingCount + '</b>件</span>' +
+            '</div>' +
+            '<div style="display:flex;gap:10px;flex-wrap:wrap;">' +
+            '<div style="text-align:center;padding:6px 12px;background:#0a1220;border-radius:6px;min-width:70px;">' +
+            '<div style="font-size:20px;font-weight:900;color:' + wrColor + ';">' + winRate + '%</div>' +
+            '<div style="font-size:9px;color:#6880a0;">成功率 (' + winCount + '勝' + lossCount + '敗)</div></div>' +
+            '<div style="text-align:center;padding:6px 12px;background:#0a1220;border-radius:6px;min-width:70px;">' +
+            '<div style="font-size:20px;font-weight:900;color:' + (avgGain >= 0 ? '#00e5a0' : '#ff4560') + ';">' + (avgGain >= 0 ? '+' : '') + avgGain.toFixed(1) + '%</div>' +
+            '<div style="font-size:9px;color:#6880a0;">平均最大上昇</div></div>' +
+            '<div style="text-align:center;padding:6px 12px;background:#0a1220;border-radius:6px;min-width:70px;">' +
+            '<div style="font-size:20px;font-weight:900;color:#00e5a0;">+' + avgWinGain.toFixed(1) + '%</div>' +
+            '<div style="font-size:9px;color:#6880a0;">成功時の平均</div></div>' +
+            '<div style="text-align:center;padding:6px 12px;background:#0a1220;border-radius:6px;min-width:70px;">' +
+            '<div style="font-size:20px;font-weight:900;color:#ff0066;">+' + maxGainAll.toFixed(0) + '%</div>' +
+            '<div style="font-size:9px;color:#6880a0;">最大上昇</div></div>' +
+            '</div></div>';
+
+        var tl2 = {'VOLUME_SPIKE':'出来高','VOLUME_RISING':'じわ上げ','INSIDER_BUY':'内部者','COMBINED':'複合','PRICE_SPIKE':'急騰','PREMARKET':'PM','ACCUMULATION':'買集め','VOL_REVERSAL':'底打ち','SQUEEZE_SETUP':'前兆','SOCIAL_BUZZ':'Reddit','SOCIAL_VOLUME':'Reddit+Vol'};
+
+        el.innerHTML = statsHtml + rows.map(function (r) {
             var mg = r.max_gain_pct;
             var rc = r.result === 'WIN' ? '#00e5a0' : r.result === 'LOSS' ? '#ff4560' : '#3d9eff';
             var rl = { 'WIN': '成功', 'LOSS': 'ハズレ', 'PENDING': '追跡中' }[r.result] || r.result;
             var date = (r.created_at || '').slice(5, 16) + ' JST';
-            return '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #1a2840;flex-wrap:wrap;">' +
+            var typeName = tl2[r.alert_type] || r.alert_type || '';
+
+            // 上昇バー
+            var barHtml = '';
+            if (mg != null) {
+                var barW = Math.min(Math.max(mg, 0), 200) / 2;
+                var barColor = mg >= 50 ? '#ff0066' : mg >= 25 ? '#00e5a0' : mg >= 10 ? '#ffaa00' : mg > 0 ? '#00e5a050' : '#ff456030';
+                barHtml = '<div style="display:flex;align-items:center;gap:4px;margin-top:4px;">' +
+                    '<div style="flex:1;height:14px;background:#0a1220;border-radius:3px;overflow:hidden;position:relative;">' +
+                    '<div style="width:' + barW + '%;height:100%;background:' + barColor + ';border-radius:3px;"></div>' +
+                    '<span style="position:absolute;left:4px;top:0;font-size:11px;font-weight:700;color:#fff;">' + (mg >= 0 ? '+' : '') + mg.toFixed(1) + '%</span>' +
+                    '</div>' +
+                    (r.max_price_7d ? '<span style="font-size:11px;font-weight:700;color:' + (mg >= 25 ? '#00e5a0' : '#ff6600') + ';">$' + r.max_price_7d.toFixed(3) + '</span>' : '') +
+                    '</div>';
+            }
+
+            return '<div style="padding:8px 12px;border-bottom:1px solid #1a2840;">' +
+                '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
                 '<span style="font-size:10px;padding:2px 8px;border-radius:4px;background:' + rc + '20;color:' + rc + ';font-weight:700;min-width:45px;text-align:center;">' + rl + '</span>' +
-                '<a href="/stock/' + r.ticker + '" style="font-weight:700;color:#3d9eff;text-decoration:none;">$' + r.ticker + '</a>' +
-                '<span>$' + (r.entry_price || 0).toFixed(2) + '</span>' +
-                '<span style="color:#ff6600;">vol ' + (r.volume_ratio || 0).toFixed(0) + 'x</span>' +
-                (mg != null ? '<span style="font-weight:700;color:' + (mg >= 25 ? '#00e5a0' : '#ff4560') + ';">peak ' + (mg >= 0 ? '+' : '') + mg.toFixed(0) + '%</span>' : '') +
+                '<a href="/stock/' + r.ticker + '" style="font-weight:700;color:#3d9eff;text-decoration:none;font-size:15px;">$' + r.ticker + '</a>' +
+                '<span style="font-size:10px;padding:1px 6px;border-radius:3px;background:#ff660020;color:#ff6600;">' + typeName + '</span>' +
                 '<span style="font-size:10px;color:#4a6080;margin-left:auto;">' + date + '</span>' +
+                '</div>' +
+                '<div style="display:flex;gap:8px;align-items:center;margin-top:4px;padding:4px 6px;background:#0a1220;border-radius:4px;flex-wrap:wrap;">' +
+                '<div style="text-align:center;min-width:55px;">' +
+                '<div style="font-size:9px;color:#4a6080;">検知価格</div>' +
+                '<div style="font-size:13px;font-weight:700;color:#c8d8f0;">$' + (r.entry_price || 0).toFixed(3) + '</div></div>' +
+                '<div style="text-align:center;min-width:45px;">' +
+                '<div style="font-size:9px;color:#4a6080;">出来高</div>' +
+                '<div style="font-size:13px;font-weight:700;color:#ff6600;">' + (r.volume_ratio || 0).toFixed(0) + 'x</div></div>' +
+                '<div style="text-align:center;min-width:45px;">' +
+                '<div style="font-size:9px;color:#4a6080;">スコア</div>' +
+                '<div style="font-size:13px;font-weight:700;color:#ffaa00;">' + (r.score || 0) + '</div></div>' +
+                (r.max_price_7d ? '<div style="text-align:center;min-width:55px;margin-left:auto;">' +
+                '<div style="font-size:9px;color:#4a6080;">最高値</div>' +
+                '<div style="font-size:13px;font-weight:900;color:' + ((mg||0) >= 25 ? '#00e5a0' : '#ff6600') + ';">$' + r.max_price_7d.toFixed(3) + '</div></div>' : '') +
+                '</div>' +
+                barHtml +
                 '</div>';
         }).join('');
     } catch (e) { el.innerHTML = '<div class="empty">エラー</div>'; }

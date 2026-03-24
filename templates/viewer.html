@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meme Stock Scanner</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#060b14; color:#c8d8f0; font-family:'Segoe UI','Meiryo',sans-serif; }
+        .header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#0a1628; border-bottom:1px solid #1a2840; flex-wrap:wrap; gap:8px; }
+        .header-title { font-size:18px; font-weight:900; }
+        .header-title span { color:#ff6600; }
+        .container { max-width:900px; margin:0 auto; padding:8px; }
+        .section { background:#0a1628; border:1px solid #1a2840; border-radius:8px; margin-bottom:8px; overflow:hidden; }
+        .section-header { display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:#0d1b2e; border-bottom:1px solid #1a2840; flex-wrap:wrap; gap:6px; }
+        .section-title { font-size:15px; font-weight:700; }
+        .tab-group { display:flex; gap:4px; flex-wrap:wrap; }
+        .tab-btn { background:none; border:1px solid #1a2840; color:#6880a0; padding:6px 14px; border-radius:4px; cursor:pointer; font-size:12px; }
+        .tab-btn:hover { border-color:#3d9eff; color:#3d9eff; }
+        .tab-btn.active { background:#3d9eff20; border-color:#3d9eff; color:#3d9eff; }
+        .stats-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:6px; padding:8px; }
+        .stat-card { background:#0d1b2e; border:1px solid #1a2840; border-radius:6px; padding:10px; text-align:center; }
+        .stat-value { font-size:24px; font-weight:900; color:#3d9eff; }
+        .stat-label { font-size:11px; color:#6880a0; margin-top:2px; }
+        .empty { text-align:center; padding:20px; color:#4a6080; }
+        .alert-card { padding:8px 12px; border-bottom:1px solid #1a2840; }
+        .alert-ticker { font-size:16px; font-weight:900; color:#3d9eff; text-decoration:none; }
+        .alert-ticker:hover { text-decoration:underline; }
+        .badge { font-size:10px; padding:2px 8px; border-radius:4px; font-weight:700; }
+        .score-badge { display:inline-flex; align-items:center; justify-content:center; min-width:32px; height:32px; border-radius:6px; font-size:14px; font-weight:900; background:#1a284040; color:#6880a0; }
+        .score-high { background:#ff006630; color:#ff0066; }
+        .score-mid { background:#ff660030; color:#ff6600; }
+        .score-low { background:#3d9eff20; color:#3d9eff; }
+        input[type="text"] { background:#0d1b2e; border:1px solid #1a2840; color:#c8d8f0; padding:8px 12px; border-radius:6px; font-size:13px; width:100%; max-width:300px; }
+        #search-results { position:absolute; top:100%; left:0; right:0; background:#0d1b2e; border:1px solid #1a2840; border-radius:0 0 6px 6px; z-index:100; max-height:300px; overflow-y:auto; display:none; }
+        #search-results a { display:block; padding:8px 12px; color:#c8d8f0; text-decoration:none; border-bottom:1px solid #0a1628; }
+        #search-results a:hover { background:#1a2840; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-title"><span>Meme Stock</span> Scanner</div>
+    <div style="position:relative;">
+        <input type="text" id="search-input" placeholder="ティッカー検索..." oninput="onSearch(this.value)">
+        <div id="search-results"></div>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- 統計 -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value" id="stat-total">-</div>
+            <div class="stat-label">合計検知</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="stat-today" style="color:#ff6600;">-</div>
+            <div class="stat-label">本日</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="stat-wr" style="color:#00e5a0;">-</div>
+            <div class="stat-label">的中率</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="stat-avg" style="color:#00e5a0;">-</div>
+            <div class="stat-label">平均最大上昇</div>
+        </div>
+    </div>
+
+    <!-- タブ -->
+    <div class="section">
+        <div class="section-header">
+            <div class="tab-group">
+                <button class="tab-btn active" onclick="switchTab('alerts',this)">検知アラート</button>
+                <button class="tab-btn" onclick="switchTab('results',this)">検知後の結果</button>
+                <button class="tab-btn" style="color:#ff0066;" onclick="switchTab('iron',this)">鉄板パターン</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 検知アラート -->
+    <div id="page-alerts" class="tab-page">
+        <div class="section">
+            <div class="section-header">
+                <span class="section-title">検知アラート <span id="alert-count" style="font-size:12px;color:#ff6600;"></span></span>
+                <div class="tab-group">
+                    <button class="tab-btn active" onclick="loadAlerts('recommend',this)">おすすめ順</button>
+                    <button class="tab-btn" onclick="loadAlerts('time',this)">新着</button>
+                </div>
+            </div>
+            <!-- 今日の鉄板 -->
+            <div id="iron-today-section" style="display:none;">
+                <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:linear-gradient(90deg,#1a000a,#0d0a1a);border-bottom:1px solid #ff006640;">
+                    <span style="font-size:15px;font-weight:900;color:#ff0066;">今日の鉄板</span>
+                    <span id="iron-today-count" style="font-size:12px;color:#ff006699;"></span>
+                    <span style="font-size:10px;color:#ff006666;margin-left:auto;">勝率70%以上の条件に合致</span>
+                </div>
+                <div id="iron-today-list"></div>
+            </div>
+            <!-- その他 -->
+            <div id="other-alerts-header" style="display:none;padding:8px 12px;background:#060b14;border-bottom:1px solid #1a2840;cursor:pointer;" onclick="toggleOther()">
+                <span id="other-toggle" style="font-size:12px;color:#4a6080;">▶</span>
+                <span style="font-size:13px;color:#6880a0;"> その他のアラート</span>
+                <span id="other-count" style="font-size:11px;color:#4a6080;"></span>
+            </div>
+            <div id="alert-list" style="max-height:600px;overflow-y:auto;">
+                <div class="empty">データを読み込み中...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 検知後の結果 -->
+    <div id="page-results" class="tab-page" style="display:none;">
+        <div class="section">
+            <div class="section-header">
+                <span class="section-title">検知後の結果</span>
+                <div class="tab-group">
+                    <button class="tab-btn active" onclick="loadResults('all','date',this)">新着順</button>
+                    <button class="tab-btn" onclick="loadResults('top','gain',this)">上昇率順</button>
+                    <button class="tab-btn" style="color:#00e5a0;" onclick="loadResults('win','date',this)">成功</button>
+                    <button class="tab-btn" style="color:#ff4560;" onclick="loadResults('lose','date',this)">ハズレ</button>
+                </div>
+            </div>
+            <div id="result-list" style="max-height:600px;overflow-y:auto;">
+                <div class="empty">データを読み込み中...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 鉄板パターン -->
+    <div id="page-iron" class="tab-page" style="display:none;">
+        <div class="section">
+            <div class="section-header" style="background:#1a0008;">
+                <span class="section-title" style="color:#ff0066;">鉄板パターン分析</span>
+            </div>
+            <div style="padding:10px 12px;font-size:12px;color:#8899b0;border-bottom:1px solid #1a2840;line-height:1.6;">
+                過去の実績から、<b style="color:#ff0066;">成功率70%以上</b>のパターンを分析しています。<br>
+                成功 = 検知価格から7日以内に+25%以上に到達。
+            </div>
+            <div id="iron-patterns" style="max-height:600px;overflow-y:auto;">
+                <div class="empty">読み込み中...</div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div style="text-align:center;padding:16px;font-size:10px;color:#4a6080;">
+    ※ 検知情報であり投資助言ではありません。投資判断は自己責任でお願いします。
+</div>
+
+<script>
+// Tab switching
+function switchTab(tab, btn) {
+    document.querySelectorAll('.tab-page').forEach(p => p.style.display = 'none');
+    document.querySelectorAll('.section-header .tab-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    const page = document.getElementById('page-' + tab);
+    if (page) page.style.display = 'block';
+    if (tab === 'results') loadResults('all', 'date');
+    if (tab === 'iron') loadIronPatterns();
+}
+
+// Stats
+async function loadStats() {
+    try {
+        const resp = await fetch('/api/stats');
+        const s = await resp.json();
+        document.getElementById('stat-total').textContent = s.total || 0;
+        document.getElementById('stat-today').textContent = s.today || 0;
+        // tracking stats
+        const resp2 = await fetch('/api/tracking/stats');
+        const t = await resp2.json();
+        if (t.total && t.total.total) {
+            const wins = (t.total.wins || 0);
+            const total = t.total.total;
+            document.getElementById('stat-wr').textContent = total > 0 ? Math.round(wins/total*100) + '%' : '-';
+            document.getElementById('stat-avg').textContent = t.total.avg_max_gain ? '+' + t.total.avg_max_gain + '%' : '-';
+        }
+    } catch(e) {}
+}
+
+// Alerts
+let cachedAlerts = [];
+let otherOpen = false;
+function toggleOther() {
+    otherOpen = !otherOpen;
+    document.getElementById('alert-list').style.display = otherOpen ? 'block' : 'none';
+    document.getElementById('other-toggle').textContent = otherOpen ? '▼' : '▶';
+}
+
+async function loadAlerts(sort, btn) {
+    if (btn) {
+        btn.parentElement.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    }
+    try {
+        const resp = await fetch(`/api/alerts?limit=100&sort=${sort || 'recommend'}`);
+        cachedAlerts = await resp.json();
+        renderAlerts();
+    } catch(e) {}
+}
+
+function renderAlerts() {
+    const iron = cachedAlerts.filter(a => (a.iron_patterns || []).length > 0);
+    const other = cachedAlerts.filter(a => (a.iron_patterns || []).length === 0);
+
+    // Iron section
+    const ironSec = document.getElementById('iron-today-section');
+    const ironList = document.getElementById('iron-today-list');
+    if (iron.length > 0) {
+        ironSec.style.display = 'block';
+        document.getElementById('iron-today-count').textContent = iron.length + '件';
+        iron.sort((a, b) => (b.iron_best_wr || 0) - (a.iron_best_wr || 0) || (b.score || 0) - (a.score || 0));
+        ironList.innerHTML = iron.map(a => alertCard(a)).join('');
+    } else {
+        ironSec.style.display = 'none';
+    }
+
+    // Other section
+    const otherHeader = document.getElementById('other-alerts-header');
+    const el = document.getElementById('alert-list');
+    document.getElementById('alert-count').textContent = `(${cachedAlerts.length}銘柄)`;
+    if (other.length > 0) {
+        otherHeader.style.display = 'block';
+        document.getElementById('other-count').textContent = `(${other.length}件)`;
+        el.innerHTML = other.map(a => alertCard(a)).join('');
+        if (iron.length > 0 && !otherOpen) {
+            el.style.display = 'none';
+        }
+    } else {
+        otherHeader.style.display = 'none';
+        el.innerHTML = '';
+    }
+}
+
+function alertCard(a) {
+    if (a.has_reverse_split) return '';
+    const price = a.price || 0;
+    const vol = a.volume_ratio || 0;
+    const score = a.score || 0;
+    const sc = score >= 50 ? 'score-high' : score >= 25 ? 'score-mid' : 'score-low';
+    const typeLabels = {'VOLUME_SPIKE':'出来高急増','VOLUME_RISING':'じわ上げ','PRICE_SPIKE':'価格急騰','ACCUMULATION':'買い集め','VOL_REVERSAL':'底打ち反転','SQUEEZE_SETUP':'ブレイク前兆','SOCIAL_VOLUME':'Reddit+出来高','SOCIAL_BUZZ':'Reddit話題','COMBINED':'複合','INSIDER_BUY':'インサイダー','PREMARKET':'プレマーケット'};
+    const type = typeLabels[a.alert_type] || a.alert_type;
+    const company = a.company_name || '';
+    const time = (a.timestamp || '').slice(5, 16) + ' JST';
+    const ironWr = a.iron_best_wr || 0;
+    const ironPatterns = a.iron_patterns || [];
+    const isIron = ironPatterns.length > 0;
+
+    let ironHeader = '';
+    let ironDetail = '';
+    let cardStyle = '';
+    if (isIron) {
+        const wrColor = ironWr >= 90 ? '#ff0066' : ironWr >= 80 ? '#ff6600' : '#ffaa00';
+        const wrBg = ironWr >= 90 ? '#ff006618' : ironWr >= 80 ? '#ff660015' : '#ffaa0012';
+        const wrLabel = ironWr >= 90 ? '超鉄板' : ironWr >= 80 ? '鉄板' : '有望';
+        cardStyle = `border:1px solid ${wrColor}40;background:${wrBg};border-radius:6px;margin:4px 0;`;
+        const repeatN = a.repeat_count || 0;
+        const caution = a.caution_sector || '';
+        const repeatNote = repeatN >= 2 ? `<span style="font-size:10px;padding:1px 8px;border-radius:4px;background:#00e5a025;color:#00e5a0;font-weight:700;">リピート${repeatN}回</span>` : '';
+        const cautionNote = caution ? `<span style="font-size:10px;padding:1px 8px;border-radius:4px;background:#ff456030;color:#ff4560;font-weight:700;">⚠${caution}</span>` : '';
+        ironHeader = `<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:${wrColor}20;border-bottom:1px solid ${wrColor}30;border-radius:6px 6px 0 0;flex-wrap:wrap;">
+            <span style="font-size:13px;font-weight:900;color:${wrColor};">${wrLabel} ${ironWr}%</span>
+            <span style="font-size:11px;color:${wrColor}cc;">${a.iron_best_name || ''}</span>
+            ${repeatNote}${cautionNote}
+        </div>`;
+        ironDetail = `<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px;">${ironPatterns.slice(0, 4).map(p => {
+            const pc = p.win_rate >= 90 ? '#ff0066' : p.win_rate >= 80 ? '#ff6600' : '#ffaa00';
+            return '<span style="font-size:9px;padding:1px 6px;border-radius:3px;background:' + pc + '18;color:' + pc + ';border:1px solid ' + pc + '25;">' + p.name + ' ' + p.win_rate + '%</span>';
+        }).join('')}</div>`;
+    }
+
+    let info = [];
+    if (vol) info.push(`出来高 ${vol}x`);
+    const fl = a.float_level || '';
+    if (fl === 'ULTRA_LOW') info.push('超低フロート');
+    else if (fl === 'LOW') info.push('低フロート');
+
+    return `<div class="alert-card" style="${cardStyle}">
+        ${ironHeader}
+        <div style="display:flex;gap:10px;align-items:flex-start;padding:${isIron ? '8px 12px' : '0'};">
+            <span class="score-badge ${sc}">${score}</span>
+            <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                    <a class="alert-ticker" href="/stock/${a.ticker}">$${a.ticker}</a>
+                    <span class="badge" style="background:#ff660030;color:#ff6600;">${type}</span>
+                    <span style="color:#8899b0;font-size:12px;">${company}</span>
+                    <span style="font-weight:700;">$${price.toFixed(2)}</span>
+                    <span style="font-size:10px;color:#4a6080;margin-left:auto;">${time}</span>
+                </div>
+                <div style="font-size:11px;color:#6880a0;margin-top:2px;">${info.join(' | ')}</div>
+                ${ironDetail}
+            </div>
+        </div>
+    </div>`;
+}
+
+// Results
+async function loadResults(filter, sort, btn) {
+    if (btn) {
+        btn.parentElement.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    }
+    const el = document.getElementById('result-list');
+    try {
+        const resp = await fetch(`/api/tracking/list?filter=${filter}&sort=${sort}&limit=100`);
+        const rows = await resp.json();
+        if (!rows.length || rows.error) { el.innerHTML = '<div class="empty">データなし</div>'; return; }
+        el.innerHTML = rows.map(r => {
+            const mg = r.max_gain_pct;
+            const rc = r.result === 'WIN' ? '#00e5a0' : r.result === 'LOSS' ? '#ff4560' : '#3d9eff';
+            const rl = {'WIN':'成功','LOSS':'ハズレ','PENDING':'追跡中'}[r.result] || r.result;
+            const date = (r.created_at || '').slice(5, 16) + ' JST';
+            return `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #1a2840;flex-wrap:wrap;">
+                <span style="font-size:10px;padding:2px 8px;border-radius:4px;background:${rc}20;color:${rc};font-weight:700;min-width:45px;text-align:center;">${rl}</span>
+                <a href="/stock/${r.ticker}" style="font-weight:700;color:#3d9eff;text-decoration:none;">$${r.ticker}</a>
+                <span>$${(r.entry_price || 0).toFixed(2)}</span>
+                <span style="color:#ff6600;">vol ${(r.volume_ratio || 0).toFixed(0)}x</span>
+                ${mg != null ? `<span style="font-weight:700;color:${mg >= 25 ? '#00e5a0' : '#ff4560'};">peak ${mg >= 0 ? '+' : ''}${mg.toFixed(0)}%</span>` : ''}
+                <span style="font-size:10px;color:#4a6080;margin-left:auto;">${date}</span>
+            </div>`;
+        }).join('');
+    } catch(e) { el.innerHTML = '<div class="empty">エラー</div>'; }
+}
+
+// Iron patterns
+async function loadIronPatterns() {
+    const el = document.getElementById('iron-patterns');
+    try {
+        const resp = await fetch('/api/iron-patterns');
+        const data = await resp.json();
+        const patterns = data.patterns || [];
+        if (!patterns.length) { el.innerHTML = '<div class="empty">データ不足</div>'; return; }
+        el.innerHTML = patterns.map(p => {
+            const barW = Math.min(p.win_rate, 100);
+            const barColor = p.win_rate >= 90 ? '#ff0066' : p.win_rate >= 80 ? '#ff6600' : '#ffaa00';
+            return `<div style="padding:10px 12px;border-bottom:1px solid #1a2840;">
+                <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                    <span style="font-size:14px;font-weight:700;color:${p.win_rate >= 80 ? '#ff0066' : '#c8d8f0'};">${p.name}</span>
+                    <span style="font-size:12px;color:#6880a0;">${p.total}件</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                    <span style="font-size:11px;color:#6880a0;min-width:45px;">成功率</span>
+                    <div style="flex:1;height:14px;background:#0a1220;border-radius:3px;overflow:hidden;position:relative;">
+                        <div style="width:${barW}%;height:100%;background:${barColor};border-radius:3px;"></div>
+                        <span style="position:absolute;left:6px;top:0;font-size:11px;font-weight:700;color:#fff;">${p.win_rate}%</span>
+                    </div>
+                </div>
+                <div style="display:flex;gap:16px;font-size:11px;color:#6880a0;">
+                    <span>平均最高: <b style="color:#00e5a0;">+${p.avg_gain}%</b></span>
+                    <span>翌日平均: <b style="color:${p.avg_1d >= 0 ? '#00e5a0' : '#ff4560'};">${p.avg_1d >= 0 ? '+' : ''}${p.avg_1d}%</b></span>
+                </div>
+            </div>`;
+        }).join('');
+    } catch(e) { el.innerHTML = '<div class="empty">エラー</div>'; }
+}
+
+// Search
+let searchTimer = null;
+function onSearch(q) {
+    clearTimeout(searchTimer);
+    const el = document.getElementById('search-results');
+    if (!q) { el.style.display = 'none'; return; }
+    searchTimer = setTimeout(async () => {
+        try {
+            const resp = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+            const rows = await resp.json();
+            if (!rows.length) { el.style.display = 'none'; return; }
+            el.style.display = 'block';
+            el.innerHTML = rows.slice(0, 10).map(r =>
+                `<a href="/stock/${r.ticker}"><b>$${r.ticker}</b> ${r.name || ''} ${r.last_price ? '$' + r.last_price.toFixed(2) : ''}</a>`
+            ).join('');
+        } catch(e) { el.style.display = 'none'; }
+    }, 300);
+}
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('#search-input') && !e.target.closest('#search-results'))
+        document.getElementById('search-results').style.display = 'none';
+});
+
+// Init
+loadStats(); loadAlerts('recommend');
+setInterval(loadStats, 60000);
+</script>
+</body>
+</html>

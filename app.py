@@ -124,7 +124,16 @@ scan_status = {
 # === Routes ===
 @app.route('/')
 def index():
+    role = _get_user_role()
+    if role == 'user':
+        return render_template('viewer.html')
     return render_template('dashboard.html')
+
+
+@app.route('/view')
+def viewer():
+    """ユーザー専用閲覧ページ"""
+    return render_template('viewer.html')
 
 
 @app.route('/portal')

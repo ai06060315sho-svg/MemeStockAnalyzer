@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>設定 - Meme Stock Scanner</title>
+    <script src="/static/theme.js"></script>
+    <link rel="stylesheet" href="/static/theme.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            font-family: 'Segoe UI', 'Meiryo', sans-serif;
+        }
+        .header {
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .header a.back { color: var(--text-link); text-decoration: none; font-size: 14px; }
+        .header h1 { font-size: 20px; color: var(--text-primary); }
+        .main { max-width: 600px; margin: 24px auto; padding: 0 16px; }
+        .section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+        .section h3 {
+            padding: 12px 16px;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border);
+            font-size: 15px;
+            border-radius: 8px 8px 0 0;
+        }
+        .section-body { padding: 16px; }
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .setting-row:last-child { border-bottom: none; }
+        .setting-label { font-size: 14px; color: var(--text-secondary); }
+        .setting-desc { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+        .theme-btn {
+            padding: 8px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .theme-btn.active {
+            border: 2px solid var(--accent);
+            background: var(--accent);
+            color: #fff;
+        }
+        .theme-btn.inactive {
+            border: 2px solid var(--border);
+            background: var(--bg-input);
+            color: var(--text-secondary);
+        }
+        .theme-btn.inactive:hover { border-color: var(--text-muted); }
+
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .header { padding: 10px 12px; }
+            .header h1 { font-size: 18px; }
+            .back { font-size: 14px; padding: 8px; min-width: 44px; min-height: 44px; display: flex; align-items: center; }
+            .main { padding: 0 8px; margin: 12px auto; }
+            .section { border-radius: 6px; }
+            .section h3 { font-size: 14px; padding: 10px 12px; }
+            .section-body { padding: 10px; }
+            .setting-row { flex-wrap: wrap; gap: 8px; }
+            .setting-row label { font-size: 13px; }
+            .theme-btn { min-height: 44px; padding: 10px 16px; font-size: 14px; flex: 1; }
+            input[type="text"], input[type="number"], select { min-height: 44px; font-size: 16px; }
+            .btn { min-height: 44px; font-size: 14px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/" class="back">← ダッシュボード</a>
+        <h1>設定</h1>
+    </div>
+
+    <div class="main">
+        <div class="section">
+            <h3>画面テーマ</h3>
+            <div class="section-body">
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">テーマカラー</div>
+                        <div class="setting-desc">画面の背景色を切り替えます</div>
+                    </div>
+                    <div style="display:flex;gap:8px;" id="theme-buttons"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function renderThemeButtons() {
+            const current = window.getTheme();
+            const el = document.getElementById('theme-buttons');
+            el.innerHTML = `
+                <button class="theme-btn ${current==='dark'?'active':'inactive'}"
+                    onclick="applyTheme('dark')">ダーク</button>
+                <button class="theme-btn ${current==='light'?'active':'inactive'}"
+                    onclick="applyTheme('light')">ライト</button>
+            `;
+        }
+        function applyTheme(theme) {
+            localStorage.setItem('meme-stock-theme', theme);
+            document.documentElement.setAttribute('data-theme', theme);
+            renderThemeButtons();
+        }
+        renderThemeButtons();
+    </script>
+</body>
+</html>

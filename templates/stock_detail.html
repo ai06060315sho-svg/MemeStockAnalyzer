@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${{ ticker }} - ミーム株アナライザー</title>
+    <script src="/static/theme.js"></script>
+    <link rel="stylesheet" href="/static/theme.css">
+    <script src="https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            font-family: 'Segoe UI', 'Meiryo', sans-serif;
+        }
+
+        .header {
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .header a.back {
+            color: var(--text-link);
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .header h1 { font-size: 20px; color: var(--text-primary); }
+        .header h1 span { color: var(--orange); }
+        .header .sub { color: var(--text-muted); font-size: 13px; margin-left: 8px; }
+
+        .main { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+
+        /* 情報カード行 */
+        .info-row { display: flex; gap: 12px; flex-wrap: wrap; }
+        .info-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 16px;
+            min-width: 140px;
+            flex: 1;
+        }
+        .info-card .label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .info-card .value { font-size: 18px; font-weight: bold; }
+        .info-card .value.green { color: var(--green); }
+        .info-card .value.red { color: var(--red); }
+        .info-card .value.orange { color: var(--orange); }
+        .info-card .value.blue { color: var(--text-link); }
+
+        /* フロートバッジ */
+        .float-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .float-badge.ULTRA_LOW { background: #ff006630; color: var(--red); }
+        .float-badge.LOW { background: #ff660030; color: var(--orange); }
+        .float-badge.NORMAL { background: #3d9eff20; color: var(--text-link); }
+
+        /* チャート */
+        .chart-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .chart-container h3 {
+            padding: 10px 16px;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+        }
+        #chart { width: 100%; height: 350px; }
+        #volume-chart { width: 100%; height: 150px; }
+
+        /* アラート履歴 */
+        .history-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .history-panel h3 {
+            padding: 10px 16px;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+        }
+        .history-list { padding: 8px; }
+        .history-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-bottom: 4px;
+            background: var(--bg-alert);
+            gap: 12px;
+            border-left: 3px solid #1a2840;
+        }
+        .history-item.VOLUME_SPIKE { border-left-color: var(--orange); }
+        .history-item.VOLUME_RISING { border-left-color: #ffaa00; }
+        .history-item.INSIDER_BUY { border-left-color: var(--green); }
+        .history-item.COMBINED { border-left-color: var(--red); }
+        .history-item.PRICE_SPIKE { border-left-color: var(--red); }
+        .history-item.PREMARKET { border-left-color: #9933ff; }
+
+        .h-score {
+            font-size: 14px; font-weight: bold;
+            min-width: 36px; text-align: center;
+            padding: 2px 4px; border-radius: 4px;
+        }
+        .h-score.high { background: #ff006630; color: var(--red); }
+        .h-score.mid { background: #ff660030; color: var(--orange); }
+        .h-score.low { background: #3d9eff20; color: var(--text-link); }
+        .h-type { font-size: 12px; color: var(--text-secondary); min-width: 100px; }
+        .h-detail { font-size: 12px; color: var(--text-muted); flex: 1; }
+        .h-date { font-size: 12px; color: var(--text-muted); }
+
+        .loading { text-align: center; padding: 40px; color: var(--text-muted); }
+        .empty { text-align: center; padding: 20px; color: var(--text-muted); font-size: 13px; }
+
+        /* 分析結果 */
+        .verdict-box {
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .verdict-box.HIGH { background: #ff006620; border: 1px solid #ff006640; }
+        .verdict-box.MEDIUM { background: #ff660020; border: 1px solid #ff660040; }
+        .verdict-box.LOW { background: #3d9eff15; border: 1px solid #3d9eff30; }
+        .verdict-box.NONE { background: #1a284020; border: 1px solid var(--border); }
+        .verdict-score {
+            font-size: 36px;
+            font-weight: bold;
+            min-width: 60px;
+            text-align: center;
+        }
+        .verdict-score.HIGH { color: var(--red); }
+        .verdict-score.MEDIUM { color: var(--orange); }
+        .verdict-score.LOW { color: var(--text-link); }
+        .verdict-score.NONE { color: var(--text-muted); }
+        .verdict-text h4 { font-size: 16px; color: var(--text-primary); margin-bottom: 4px; }
+        .verdict-text p { font-size: 13px; color: var(--text-secondary); }
+
+        .signal-list { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+        .signal-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 6px;
+            background: var(--bg-alert);
+            gap: 10px;
+        }
+        .signal-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .signal-dot.strong { background: #ff0066; }
+        .signal-dot.medium { background: #ff6600; }
+        .signal-dot.weak { background: #3d9eff; }
+        .signal-name { font-size: 13px; color: var(--text-secondary); min-width: 120px; }
+        .signal-value { font-size: 13px; font-weight: bold; color: var(--text-primary); }
+
+        .vol-trend-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+        .vol-trend-item {
+            background: var(--bg-alert);
+            border-radius: 6px;
+            padding: 6px 10px;
+            text-align: center;
+            flex: 1;
+            min-width: 60px;
+        }
+        .vol-trend-item .date { font-size: 10px; color: var(--text-muted); }
+        .vol-trend-item .vol { font-size: 12px; color: var(--orange); font-weight: bold; }
+        .vol-trend-item .price { font-size: 11px; color: var(--text-secondary); }
+        .btn { cursor: pointer; }
+
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .header { flex-wrap: wrap; padding: 10px 12px; gap: 8px; }
+            .header h1 { font-size: 20px; }
+            .back { font-size: 14px; padding: 8px 4px; min-width: 44px; min-height: 44px; display: flex; align-items: center; }
+            .main { padding: 8px; }
+            .info-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+            .info-card { min-width: 0; padding: 10px; }
+            .info-card .label { font-size: 10px; }
+            .info-card .value { font-size: 15px; }
+            #chart { height: 220px !important; }
+            #volume-chart { height: 100px !important; }
+            .chart-container { padding: 10px; border-radius: 6px; }
+            .chart-container h3 { font-size: 14px; }
+            .history-item { flex-wrap: wrap; gap: 6px; padding: 10px; }
+            .h-type { min-width: auto; }
+            .signal-name { min-width: auto; }
+            .verdict-score { font-size: 28px; min-width: 50px; }
+            /* ML予測セクション */
+            #ml-predict-result > div:first-child { gap: 8px !important; }
+            #ml-predict-result > div:first-child > div { min-width: 60px !important; }
+            #ml-predict-result > div:first-child > div > div:nth-child(2) { font-size: 22px !important; }
+            /* ボタン */
+            .btn { min-height: 44px; font-size: 14px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/" class="back">← 戻る</a>
+        <h1><span id="h-ticker">${{ ticker }}</span></h1>
+        <span class="sub" id="h-name">読み込み中...</span>
+    </div>
+
+    <div class="main">
+        <!-- 銘柄情報 -->
+        <div class="info-row" id="info-cards">
+            <div class="loading">データを取得中...</div>
+        </div>
+
+        <!-- 分析セクション -->
+        <div class="chart-container" id="analysis-section">
+            <h3 style="display:flex;justify-content:space-between;align-items:center;">
+                銘柄分析
+                <button class="btn btn-primary" id="analyze-btn" onclick="runAnalysis()" style="font-size:12px;padding:6px 16px;">
+                    分析実行
+                </button>
+            </h3>
+            <div id="analysis-result" style="padding:16px;">
+                <div style="text-align:center;color:#4a6080;padding:20px;">
+                    「分析実行」を押すと、この銘柄の上昇可能性を分析します
+                </div>
+            </div>
+        </div>
+
+        <!-- ML予測 -->
+        <div class="chart-container" id="ml-predict-section">
+            <h3 style="color:#ffd700;">ML予測</h3>
+            <div id="ml-predict-result" style="padding:12px 16px;">
+                <div style="text-align:center;color:#4a6080;padding:12px;">読み込み中...</div>
+            </div>
+        </div>
+
+        <!-- 事業内容 -->
+        <div class="chart-container" id="business-section" style="display:none;">
+            <h3>事業内容</h3>
+            <div id="business-summary" style="padding:12px 16px;font-size:13px;color:#8899b0;line-height:1.6;"></div>
+        </div>
+
+        <!-- 価格チャート -->
+        <div class="chart-container">
+            <h3>価格チャート（30日）</h3>
+            <div id="chart"></div>
+        </div>
+
+        <!-- 出来高チャート -->
+        <div class="chart-container">
+            <h3>出来高推移（30日）</h3>
+            <div id="volume-chart"></div>
+        </div>
+
+        <!-- アラート履歴 -->
+        <div class="history-panel">
+            <h3>アラート履歴</h3>
+            <div class="history-list" id="history-list">
+                <div class="loading">読み込み中...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const TICKER = '{{ ticker }}';
+
+        async function loadData() {
+            try {
+                const resp = await fetch(`/api/stock/${TICKER}/info`);
+                if (!resp.ok) throw new Error('取得失敗');
+                const data = await resp.json();
+
+                // ヘッダー
+                document.getElementById('h-name').textContent = data.name || '';
+
+                // 情報カード
+                renderInfoCards(data);
+
+                // 事業内容
+                if (data.business_summary) {
+                    document.getElementById('business-section').style.display = 'block';
+                    document.getElementById('business-summary').textContent = data.business_summary;
+                }
+
+                // チャート
+                if (data.chart_data && data.chart_data.length > 0) {
+                    renderPriceChart(data.chart_data);
+                    renderVolumeChart(data.chart_data);
+                }
+
+                // アラート履歴
+                renderHistory(data.alerts || []);
+
+            } catch (e) {
+                document.getElementById('info-cards').innerHTML =
+                    `<div class="loading">データの取得に失敗しました: ${e.message}</div>`;
+            }
+        }
+
+        function renderInfoCards(d) {
+            const price = d.price != null ? `$${d.price.toFixed(2)}` : '-';
+            const mcap = d.market_cap ? `$${(d.market_cap/1e6).toFixed(1)}M` : '-';
+            const floatStr = d.float_shares ? `${(d.float_shares/1e6).toFixed(1)}M` : '-';
+            const floatLevel = d.float_level || 'NORMAL';
+            const shortPct = d.short_pct != null ? `${(d.short_pct*100).toFixed(1)}%` : '-';
+            const volume = d.volume ? d.volume.toLocaleString() : '-';
+            const avgVol = d.avg_volume ? d.avg_volume.toLocaleString() : '-';
+            const high52 = d.fifty_two_week_high ? `$${d.fifty_two_week_high.toFixed(2)}` : '-';
+            const low52 = d.fifty_two_week_low ? `$${d.fifty_two_week_low.toFixed(2)}` : '-';
+
+            document.getElementById('info-cards').innerHTML = `
+                <div class="info-card">
+                    <div class="label">現在価格</div>
+                    <div class="value">${price}</div>
+                </div>
+                <div class="info-card">
+                    <div class="label">時価総額</div>
+                    <div class="value blue">${mcap}</div>
+                </div>
+                <div class="info-card">
+                    <div class="label">フロート</div>
+                    <div class="value">${floatStr} <span class="float-badge ${floatLevel}">${floatLevel}</span></div>
+                </div>
+                <div class="info-card">
+                    <div class="label">空売り比率</div>
+                    <div class="value ${d.short_pct >= 0.2 ? 'red' : ''}">${shortPct}</div>
+                </div>
+                <div class="info-card">
+                    <div class="label">出来高</div>
+                    <div class="value orange">${volume}</div>
+                </div>
+                <div class="info-card">
+                    <div class="label">平均出来高</div>
+                    <div class="value">${avgVol}</div>
+                </div>
+                <div class="info-card">
+                    <div class="label">52週高値</div>
+                    <div class="value green">${high52}</div>
+                </div>
+                <div class="info-card">
+                    <div class="label">52週安値</div>
+                    <div class="value red">${low52}</div>
+                </div>
+                <div class="info-card">
+                    <div class="label">セクター</div>
+                    <div class="value" style="font-size:13px;">${d.sector_ja || d.sector || '-'}</div>
+                </div>
+                <div class="info-card">
+                    <div class="label">業種</div>
+                    <div class="value" style="font-size:13px;">${d.industry_ja || d.industry || '-'}</div>
+                </div>
+                <div class="info-card">
+                    <div class="label">取引所</div>
+                    <div class="value" style="font-size:13px;">${d.exchange || '-'}</div>
+                </div>
+            `;
+        }
+
+        function renderPriceChart(chartData) {
+            const container = document.getElementById('chart');
+            const chart = LightweightCharts.createChart(container, {
+                width: container.clientWidth,
+                height: 350,
+                layout: { background: { color: '#0d1a2d' }, textColor: '#8899b0' },
+                grid: {
+                    vertLines: { color: '#1a284020' },
+                    horzLines: { color: '#1a284020' },
+                },
+                crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+                timeScale: { borderColor: '#1a2840' },
+                rightPriceScale: { borderColor: '#1a2840' },
+            });
+
+            const series = chart.addCandlestickSeries({
+                upColor: '#4CAF50',
+                downColor: '#f44336',
+                borderUpColor: '#4CAF50',
+                borderDownColor: '#f44336',
+                wickUpColor: '#4CAF50',
+                wickDownColor: '#f44336',
+            });
+
+            series.setData(chartData.map(d => ({
+                time: d.date,
+                open: d.open,
+                high: d.high,
+                low: d.low,
+                close: d.close,
+            })));
+
+            chart.timeScale().fitContent();
+
+            window.addEventListener('resize', () => {
+                chart.applyOptions({ width: container.clientWidth });
+            });
+        }
+
+        function renderVolumeChart(chartData) {
+            const container = document.getElementById('volume-chart');
+            const chart = LightweightCharts.createChart(container, {
+                width: container.clientWidth,
+                height: 150,
+                layout: { background: { color: '#0d1a2d' }, textColor: '#8899b0' },
+                grid: {
+                    vertLines: { color: '#1a284020' },
+                    horzLines: { color: '#1a284020' },
+                },
+                timeScale: { borderColor: '#1a2840' },
+                rightPriceScale: { borderColor: '#1a2840' },
+            });
+
+            const series = chart.addHistogramSeries({
+                priceFormat: { type: 'volume' },
+                priceScaleId: '',
+            });
+
+            // 出来高の20日平均を計算
+            const avgWindow = 20;
+            const volumes = chartData.map(d => d.volume);
+
+            series.setData(chartData.map((d, i) => {
+                const avg = i >= avgWindow
+                    ? volumes.slice(i - avgWindow, i).reduce((a, b) => a + b, 0) / avgWindow
+                    : volumes.slice(0, i + 1).reduce((a, b) => a + b, 0) / (i + 1);
+                const ratio = d.volume / avg;
+                let color = '#3d9eff40';  // 通常
+                if (ratio >= 5) color = '#ff000080';  // 5倍以上
+                else if (ratio >= 3) color = '#ff660080';  // 3倍以上
+                else if (ratio >= 2) color = '#ffaa0060';  // 2倍以上
+
+                return { time: d.date, value: d.volume, color };
+            }));
+
+            chart.timeScale().fitContent();
+
+            window.addEventListener('resize', () => {
+                chart.applyOptions({ width: container.clientWidth });
+            });
+        }
+
+        function renderHistory(alerts) {
+            const el = document.getElementById('history-list');
+            if (!alerts.length) {
+                el.innerHTML = '<div class="empty">この銘柄のアラート履歴はありません</div>';
+                return;
+            }
+
+            const typeLabels = {
+                'VOLUME_SPIKE': '出来高急増',
+                'VOLUME_RISING': '出来高じわ上げ',
+                'INSIDER_BUY': 'インサイダー買い',
+                'COMBINED': '複合シグナル',
+                'PRICE_SPIKE': '価格急騰',
+                'PREMARKET': 'プレマーケット',
+            };
+
+            el.innerHTML = alerts.map(a => {
+                const type = a.alert_type || '';
+                const score = a.score || 0;
+                const scoreClass = score >= 60 ? 'high' : (score >= 30 ? 'mid' : 'low');
+                const label = typeLabels[type] || type;
+
+                let detail = '';
+                if (a.volume_ratio) detail += `出来高${a.volume_ratio}倍 `;
+                if (a.price_change_pct) detail += `${a.price_change_pct > 0 ? '+' : ''}${a.price_change_pct}% `;
+                if (a.insider_name) detail += `${a.insider_name} $${Number(a.insider_buy_amount || 0).toLocaleString()} `;
+                if (a.score_detail) detail += `| ${a.score_detail}`;
+
+                const date = (a.timestamp || '').slice(0, 16);
+
+                return `<div class="history-item ${type}">
+                    <span class="h-score ${scoreClass}">${score}</span>
+                    <span class="h-type">${label}</span>
+                    <span class="h-detail">${detail}</span>
+                    <span class="h-date">${date}</span>
+                </div>`;
+            }).join('');
+        }
+
+        async function runAnalysis() {
+            const btn = document.getElementById('analyze-btn');
+            const el = document.getElementById('analysis-result');
+            btn.disabled = true;
+            btn.textContent = '分析中...';
+            el.innerHTML = '<div style="text-align:center;padding:20px;color:#ffaa00;">分析中...</div>';
+
+            try {
+                const resp = await fetch(`/api/stock/${TICKER}/analyze`, { method: 'POST' });
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    throw new Error(err.error || '分析に失敗しました');
+                }
+                const data = await resp.json();
+                renderAnalysis(data);
+            } catch (e) {
+                el.innerHTML = `<div style="text-align:center;padding:20px;color:#f44336;">${e.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '分析実行';
+            }
+        }
+
+        function renderAnalysis(data) {
+            const el = document.getElementById('analysis-result');
+            const lv = data.verdict_level;
+
+            // シグナル一覧HTML
+            let signalsHtml = '';
+            if (data.signals && data.signals.length > 0) {
+                signalsHtml = '<div class="signal-list">' +
+                    data.signals.map(s => `
+                        <div class="signal-item">
+                            <span class="signal-dot ${s.strength}"></span>
+                            <span class="signal-name">${s.name}</span>
+                            <span class="signal-value">${s.value}</span>
+                        </div>
+                    `).join('') + '</div>';
+            } else {
+                signalsHtml = '<div style="color:#4a6080;font-size:13px;margin-top:8px;">検出されたシグナルはありません</div>';
+            }
+
+            // 出来高トレンド
+            let trendHtml = '';
+            if (data.vol_trend && data.vol_trend.length > 0) {
+                trendHtml = '<div style="margin-top:16px;"><div style="font-size:12px;color:#6880a0;margin-bottom:6px;">直近5日間の出来高推移</div>' +
+                    '<div class="vol-trend-row">' +
+                    data.vol_trend.map(t => `
+                        <div class="vol-trend-item">
+                            <div class="date">${t.date}</div>
+                            <div class="vol">${t.volume >= 1000000 ? (t.volume/1e6).toFixed(1)+'M' : (t.volume/1e3).toFixed(0)+'K'}</div>
+                            <div class="price">$${t.close.toFixed(2)}</div>
+                        </div>
+                    `).join('') + '</div></div>';
+            }
+
+            // インサイダー情報
+            let insiderHtml = '';
+            if (data.insider_buys && data.insider_buys.length > 0) {
+                insiderHtml = '<div style="margin-top:16px;"><div style="font-size:12px;color:#6880a0;margin-bottom:6px;">直近のインサイダー取引</div>' +
+                    data.insider_buys.map(b => `
+                        <div class="signal-item">
+                            <span class="signal-dot strong"></span>
+                            <span class="signal-name">${b.insider_name}</span>
+                            <span class="signal-value">${b.shares.toLocaleString()}株 ($${b.total_value.toLocaleString()}) ${b.date}</span>
+                        </div>
+                    `).join('') + '</div>';
+            }
+
+            el.innerHTML = `
+                <div class="verdict-box ${lv}">
+                    <div class="verdict-score ${lv}">${data.score}</div>
+                    <div class="verdict-text">
+                        <h4>${data.verdict}</h4>
+                        <p>${data.verdict_detail}</p>
+                    </div>
+                </div>
+                <div style="font-size:11px;color:#4a6080;margin-bottom:12px;">
+                    スコア内訳: ${data.score_detail}
+                </div>
+                <div style="font-size:13px;color:#8899b0;margin-bottom:4px;">
+                    現在価格: <b style="color:#e8f0ff;">$${data.price.toFixed(2)}</b>
+                    (${data.price_change_pct > 0 ? '+' : ''}${data.price_change_pct}%)
+                    | 出来高: <b style="color:#ff6600;">${data.volume.toLocaleString()}</b>
+                    (平均の${data.volume_ratio}倍)
+                    ${data.vol_rising ? '| <b style="color:#ffaa00;">出来高じわ上げ中</b>' : ''}
+                </div>
+                ${signalsHtml}
+                ${trendHtml}
+                ${insiderHtml}
+            `;
+        }
+
+        async function loadMLPredict() {
+            const el = document.getElementById('ml-predict-result');
+            try {
+                const resp = await fetch(`/api/ml/predict/${TICKER}`);
+                if (!resp.ok) { el.innerHTML = '<div style="color:#4a6080;padding:8px;">ML予測なし（アラート履歴がありません）</div>'; return; }
+                const data = await resp.json();
+
+                if (data.recommendation === 'NO_MODEL') {
+                    el.innerHTML = '<div style="color:#4a6080;padding:8px;">MLモデル未学習（データ蓄積中）</div>';
+                    return;
+                }
+
+                const mlScore = data.ml_score || 0;
+                const gain = data.expected_gain || 0;
+                const prob = data.win_probability || 0;
+                const rec = data.recommendation_ja || '';
+                const recColor = data.recommendation === 'STRONG_BUY' ? '#ff0066' :
+                                 data.recommendation === 'BUY' ? '#ff6600' :
+                                 data.recommendation === 'WATCH' ? '#ffaa00' : '#6880a0';
+
+                const barW = Math.min(mlScore, 100);
+
+                el.innerHTML = `
+                    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;">
+                        <div style="text-align:center;min-width:80px;">
+                            <div style="font-size:10px;color:#6880a0;">ML Score</div>
+                            <div style="font-size:28px;font-weight:700;color:${recColor};">${mlScore.toFixed(0)}</div>
+                        </div>
+                        <div style="text-align:center;min-width:80px;">
+                            <div style="font-size:10px;color:#6880a0;">期待上昇率</div>
+                            <div style="font-size:28px;font-weight:700;color:#00e5a0;">+${gain.toFixed(0)}%</div>
+                        </div>
+                        <div style="text-align:center;min-width:80px;">
+                            <div style="font-size:10px;color:#6880a0;">Win確率</div>
+                            <div style="font-size:28px;font-weight:700;color:#3d9eff;">${prob.toFixed(0)}%</div>
+                        </div>
+                        <div style="text-align:center;min-width:80px;">
+                            <div style="font-size:10px;color:#6880a0;">推奨</div>
+                            <div style="font-size:16px;font-weight:700;color:${recColor};margin-top:6px;">${rec}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="font-size:11px;color:#6880a0;min-width:60px;">MLスコア</span>
+                        <div style="flex:1;height:12px;background:#0a1220;border-radius:4px;overflow:hidden;">
+                            <div style="width:${barW}%;height:100%;background:${recColor};border-radius:4px;"></div>
+                        </div>
+                        <span style="font-size:12px;font-weight:700;color:#e8f0ff;min-width:40px;">${mlScore.toFixed(0)}/100</span>
+                    </div>
+                    <div style="font-size:11px;color:#4a6080;margin-top:8px;">
+                        Base Score: ${data.base_score || 0} | ML prediction based on ${data.recommendation === 'NO_MODEL' ? 0 : 'trained'} model
+                    </div>
+                `;
+            } catch(e) {
+                el.innerHTML = '<div style="color:#4a6080;padding:8px;">ML予測を取得できませんでした</div>';
+            }
+        }
+
+        loadData();
+        loadMLPredict();
+    </script>
+</body>
+</html>

@@ -208,14 +208,20 @@
             <input type="text" id="search-input" placeholder="ティッカー検索..." oninput="onSearch(this.value)">
             <div id="search-results"></div>
         </div>
+        {% if user_role == 'admin' %}
         <button class="btn btn-primary" id="scan-btn" onclick="startScan()" style="min-height:40px;">スキャン実行</button>
+        {% endif %}
         <span id="universe-count" style="font-size:11px;color:#6880a0;"></span>
         <button class="hamburger" style="display:none;" onclick="document.getElementById('mobile-nav').classList.add('open')">&#9776;</button>
         <span class="header-nav" id="mobile-nav">
             <button class="menu-close" onclick="this.parentElement.classList.remove('open')">&times;</button>
+            {% if user_role == 'admin' %}
             <a href="/settings" class="btn btn-secondary">設定</a>
+            {% endif %}
             <a href="/criteria" class="btn btn-secondary">基準</a>
+            {% if user_role == 'admin' %}
             <a href="/portal" class="btn btn-secondary">ポータル</a>
+            {% endif %}
         </span>
     </div>
 </div>
@@ -416,7 +422,7 @@
                 </div>
             </div>
             <div class="section-body" id="alert-list" style="max-height:600px;">
-                <div class="empty">スキャン実行を押してください</div>
+                <div class="empty">データを読み込み中...</div>
             </div>
         </div>
     </div>

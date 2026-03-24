@@ -36,7 +36,7 @@ class ResultTracker:
 
         # バッチで価格履歴を取得（時間外データ含む）
         price_cache = {}
-        batch_size = 50
+        batch_size = 20  # e2-micro(1GB RAM)対応
         for i in range(0, len(tickers), batch_size):
             batch = tickers[i:i + batch_size]
             try:

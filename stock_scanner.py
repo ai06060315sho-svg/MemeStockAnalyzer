@@ -130,7 +130,7 @@ class StockScanner:
 
         print(f"[Scanner] Scanning {len(tickers)} tickers for volume spikes...")
         alerts = []
-        batch_size = 100
+        batch_size = 30  # e2-micro(1GB RAM)対応: メモリ節約のため小バッチ
 
         for i in range(0, len(tickers), batch_size):
             batch = tickers[i:i + batch_size]

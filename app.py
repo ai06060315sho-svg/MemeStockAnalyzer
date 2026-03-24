@@ -53,22 +53,50 @@ app.config['SECRET_KEY'] = Config.FLASK_SECRET_KEY
 cors_origins = [o.strip() for o in Config.CORS_ORIGINS.split(',')]
 socketio = SocketIO(app, cors_allowed_origins=cors_origins, async_mode='threading')
 
-# Basic認証（.envのAPP_USER / APP_PASSで制御、未設定なら認証なし）
-_APP_USER = os.environ.get('APP_USER', '')
-_APP_PASS = os.environ.get('APP_PASS', '')
+# 認証設定（.envで制御）
+# ADMIN: 管理者（スキャン実行・全機能アクセス可能）
+# USER: 一般ユーザー（閲覧のみ、スキャン実行不可）
+_ADMIN_USER = os.environ.get('APP_USER', '')
+_ADMIN_PASS = os.environ.get('APP_PASS', '')
+_VIEW_USER = os.environ.get('VIEW_USER', '')
+_VIEW_PASS = os.environ.get('VIEW_PASS', '')
+
+
+def _get_user_role():
+    """現在のリクエストのユーザーロールを返す"""
+    auth = request.authorization
+    if not auth:
+        return None
+    if _ADMIN_USER and auth.username == _ADMIN_USER and auth.password == _ADMIN_PASS:
+        return 'admin'
+    if _VIEW_USER and auth.username == _VIEW_USER and auth.password == _VIEW_PASS:
+        return 'user'
+    return None
+
 
 @app.before_request
 def _check_auth():
     # 認証が設定されていない場合はスキップ
-    if not _APP_USER or not _APP_PASS:
+    if not _ADMIN_USER and not _VIEW_USER:
         return
     # API内部通信（SocketIO等）はスキップ
     if request.path.startswith('/socket.io'):
         return
-    auth = request.authorization
-    if not auth or auth.username != _APP_USER or auth.password != _APP_PASS:
+    role = _get_user_role()
+    if not role:
         return ('認証が必要です', 401,
                 {'WWW-Authenticate': 'Basic realm="MemeStockAnalyzer"'})
+    # ユーザーロールの場合、管理者専用APIをブロック
+    if role == 'user':
+        blocked_paths = ['/api/scan', '/portal', '/api/news/send', '/api/ml/train']
+        if any(request.path.startswith(p) for p in blocked_paths):
+            return jsonify({'error': 'Admin only'}), 403
+
+
+@app.context_processor
+def inject_role():
+    """テンプレートにユーザーロールを注入"""
+    return {'user_role': _get_user_role() or 'admin'}
 
 # グローバルインスタンス
 db = StockDB()

@@ -86,11 +86,32 @@ def _check_auth():
     if not role:
         return ('認証が必要です', 401,
                 {'WWW-Authenticate': 'Basic realm="MemeStockAnalyzer"'})
-    # ユーザーロールの場合、管理者専用APIをブロック
+    # ユーザーロールの場合、許可されたAPIのみアクセス可能
     if role == 'user':
-        blocked_paths = ['/api/scan', '/portal', '/api/news/send', '/api/ml/train']
-        if any(request.path.startswith(p) for p in blocked_paths):
-            return jsonify({'error': 'Admin only'}), 403
+        # ユーザーに許可するパス（閲覧系のみ）
+        allowed_paths = [
+            '/', '/view', '/criteria',
+            '/stock/',              # 個別銘柄ページ
+            '/api/alerts',          # 検知アラート一覧
+            '/api/stats',           # 基本統計
+            '/api/tracking/',       # 検知後の結果
+            '/api/iron-patterns',   # 鉄板パターン
+            '/api/reddit/trending', # Reddit注目銘柄
+            '/api/ml/stats',        # ML統計（閲覧のみ）
+            '/api/ml/top-picks',    # ML厳選銘柄
+            '/api/stock/',          # 個別銘柄情報
+            '/api/search',          # ティッカー検索
+            '/api/backtest',        # バックテスト結果
+            '/api/economic',        # 経済指標
+            '/static/',             # 静的ファイル
+        ]
+        # 許可リストに一致しなければブロック
+        path = request.path
+        if not any(path == p or path.startswith(p) for p in allowed_paths):
+            return jsonify({'error': 'Access denied'}), 403
+        # POST/DELETE/PUTはすべてブロック（閲覧のみ）
+        if request.method in ('POST', 'DELETE', 'PUT'):
+            return jsonify({'error': 'Read only'}), 403
 
 
 @app.context_processor
@@ -138,7 +159,9 @@ def viewer():
 
 @app.route('/portal')
 def portal_redirect():
-    """ポータルへリダイレクト（ホスト名を維持）"""
+    """ポータルへリダイレクト（管理者のみ）"""
+    if _get_user_role() != 'admin':
+        return 'Access denied', 403
     host = request.host.split(':')[0]
     return redirect(f'http://{host}:3000')
 

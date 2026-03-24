@@ -7,4 +7,3 @@ venv/
 backups/
 *.log
 memestock_deploy.tar.gz
-deploy/

@@ -1,0 +1,15 @@
+[Unit]
+Description=MemeStockAnalyzer
+After=network.target
+
+[Service]
+Type=simple
+User=memestock
+WorkingDirectory=/home/memestock/meme-stock
+ExecStart=/home/memestock/meme-stock/venv/bin/python app.py
+Restart=always
+RestartSec=10
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

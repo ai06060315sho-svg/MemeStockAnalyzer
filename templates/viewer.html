@@ -15,13 +15,13 @@
         .section-header { display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:#0d1b2e; border-bottom:1px solid #1a2840; flex-wrap:wrap; gap:6px; }
         .section-title { font-size:15px; font-weight:700; }
         .tab-group { display:flex; gap:4px; flex-wrap:wrap; }
-        .tab-btn { background:none; border:1px solid #1a2840; color:#6880a0; padding:6px 14px; border-radius:4px; cursor:pointer; font-size:12px; }
+        .tab-btn { background:none; border:1px solid #1a2840; color:#6880a0; padding:6px 14px; border-radius:4px; cursor:pointer; font-size:12px; white-space:nowrap; }
         .tab-btn:hover { border-color:#3d9eff; color:#3d9eff; }
         .tab-btn.active { background:#3d9eff20; border-color:#3d9eff; color:#3d9eff; }
-        .stats-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:6px; padding:8px; }
+        .stats-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(100px, 1fr)); gap:6px; padding:8px; }
         .stat-card { background:#0d1b2e; border:1px solid #1a2840; border-radius:6px; padding:10px; text-align:center; }
-        .stat-value { font-size:24px; font-weight:900; color:#3d9eff; }
-        .stat-label { font-size:11px; color:#6880a0; margin-top:2px; }
+        .stat-value { font-size:22px; font-weight:900; color:#3d9eff; }
+        .stat-label { font-size:10px; color:#6880a0; margin-top:2px; }
         .empty { text-align:center; padding:20px; color:#4a6080; }
         .alert-card { padding:8px 12px; border-bottom:1px solid #1a2840; }
         .alert-ticker { font-size:16px; font-weight:900; color:#3d9eff; text-decoration:none; }
@@ -31,20 +31,66 @@
         .score-high { background:#ff006630; color:#ff0066; }
         .score-mid { background:#ff660030; color:#ff6600; }
         .score-low { background:#3d9eff20; color:#3d9eff; }
-        input[type="text"] { background:#0d1b2e; border:1px solid #1a2840; color:#c8d8f0; padding:8px 12px; border-radius:6px; font-size:13px; width:100%; max-width:300px; }
+        input[type="text"] { background:#0d1b2e; border:1px solid #1a2840; color:#c8d8f0; padding:8px 12px; border-radius:6px; font-size:13px; width:100%; max-width:260px; }
         #search-results { position:absolute; top:100%; left:0; right:0; background:#0d1b2e; border:1px solid #1a2840; border-radius:0 0 6px 6px; z-index:100; max-height:300px; overflow-y:auto; display:none; }
-        #search-results a { display:block; padding:8px 12px; color:#c8d8f0; text-decoration:none; border-bottom:1px solid #0a1628; }
+        #search-results a { display:block; padding:8px 12px; color:#c8d8f0; text-decoration:none; border-bottom:1px solid #0a1628; font-size:13px; }
         #search-results a:hover { background:#1a2840; }
+        .update-bar { display:flex; align-items:center; gap:8px; padding:6px 12px; font-size:10px; color:#4a6080; border-bottom:1px solid #1a2840; }
+        .disclaimer-bar { padding:6px 12px; font-size:10px; color:#ff4560; background:#ff456008; border-bottom:1px solid #ff456020; text-align:center; }
+        /* 免責同意モーダル */
+        .modal-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.85); z-index:9999; display:flex; align-items:center; justify-content:center; }
+        .modal-box { background:#0a1628; border:1px solid #1a2840; border-radius:12px; max-width:480px; width:90%; padding:24px; }
+        .modal-title { font-size:18px; font-weight:900; color:#ff6600; margin-bottom:16px; }
+        .modal-text { font-size:13px; line-height:2; color:#c8d8f0; margin-bottom:20px; }
+        .modal-btn { display:block; width:100%; padding:14px; background:#3d9eff; color:#fff; border:none; border-radius:8px; font-size:15px; font-weight:700; cursor:pointer; }
+        .modal-btn:hover { background:#2d8eef; }
+        /* スマホ対応 */
+        @media (max-width: 600px) {
+            .header { padding:8px 12px; }
+            .header-title { font-size:15px; }
+            input[type="text"] { max-width:160px; font-size:12px; padding:6px 10px; }
+            .stat-value { font-size:18px; }
+            .stats-grid { grid-template-columns:repeat(2, 1fr); gap:4px; padding:4px; }
+            .section-header { padding:8px 10px; }
+            .tab-btn { padding:5px 10px; font-size:11px; }
+            .alert-ticker { font-size:14px; }
+            .container { padding:4px; }
+        }
     </style>
 </head>
 <body>
 
+<!-- 免責同意モーダル -->
+<div class="modal-overlay" id="disclaimer-modal">
+    <div class="modal-box">
+        <div class="modal-title">ご利用にあたって</div>
+        <div class="modal-text">
+            本サービスは、米国株の出来高異常を検知する<b>情報提供ツール</b>です。<br><br>
+            <b style="color:#ff4560;">以下をご理解の上、ご利用ください：</b><br>
+            ・本サービスは投資助言ではありません<br>
+            ・掲載情報に基づく投資判断は自己責任です<br>
+            ・過去の実績は将来の結果を保証しません<br>
+            ・表示される勝率やスコアは過去データに基づく参考値です<br>
+        </div>
+        <button class="modal-btn" onclick="acceptDisclaimer()">同意して閲覧する</button>
+    </div>
+</div>
+
+<div id="app-content" style="display:none;">
+
 <div class="header">
     <div class="header-title"><span>Meme Stock</span> Scanner</div>
-    <div style="position:relative;">
-        <input type="text" id="search-input" placeholder="ティッカー検索..." oninput="onSearch(this.value)">
-        <div id="search-results"></div>
+    <div style="display:flex;align-items:center;gap:8px;">
+        <div style="position:relative;">
+            <input type="text" id="search-input" placeholder="ティッカー検索..." oninput="onSearch(this.value)">
+            <div id="search-results"></div>
+        </div>
     </div>
+</div>
+
+<!-- 免責事項バー -->
+<div class="disclaimer-bar">
+    ※ 本サービスは情報提供のみを目的としており、投資助言ではありません。投資判断は自己責任でお願いします。
 </div>
 
 <div class="container">
@@ -69,10 +115,18 @@
         </div>
     </div>
 
+    <!-- 最終更新時刻 -->
+    <div class="update-bar">
+        <span>最終スキャン: <span id="last-scan">-</span></span>
+        <span>|</span>
+        <span>次回更新: <span id="next-update">-</span></span>
+        <span style="margin-left:auto;" id="auto-update-label">30秒ごとに自動更新</span>
+    </div>
+
     <!-- タブ -->
     <div class="section">
         <div class="section-header">
-            <div class="tab-group">
+            <div class="tab-group" id="main-tabs">
                 <button class="tab-btn active" onclick="switchTab('alerts',this)">検知アラート</button>
                 <button class="tab-btn" onclick="switchTab('results',this)">検知後の結果</button>
                 <button class="tab-btn" style="color:#ff0066;" onclick="switchTab('iron',this)">鉄板パターン</button>
@@ -86,8 +140,8 @@
             <div class="section-header">
                 <span class="section-title">検知アラート <span id="alert-count" style="font-size:12px;color:#ff6600;"></span></span>
                 <div class="tab-group">
-                    <button class="tab-btn active" onclick="loadAlerts('recommend',this)">おすすめ順</button>
-                    <button class="tab-btn" onclick="loadAlerts('time',this)">新着</button>
+                    <button class="tab-btn active" id="sort-recommend" onclick="loadAlerts('recommend',this)">おすすめ順</button>
+                    <button class="tab-btn" id="sort-time" onclick="loadAlerts('time',this)">新着</button>
                 </div>
             </div>
             <!-- 今日の鉄板 -->
@@ -151,11 +205,24 @@
     ※ 検知情報であり投資助言ではありません。投資判断は自己責任でお願いします。
 </div>
 
+</div><!-- /app-content -->
+
 <script>
-// Tab switching
+// 免責同意
+function acceptDisclaimer() {
+    localStorage.setItem('disclaimer_accepted', 'yes');
+    document.getElementById('disclaimer-modal').style.display = 'none';
+    document.getElementById('app-content').style.display = 'block';
+}
+if (localStorage.getItem('disclaimer_accepted') === 'yes') {
+    document.getElementById('disclaimer-modal').style.display = 'none';
+    document.getElementById('app-content').style.display = 'block';
+}
+
+// Tab
 function switchTab(tab, btn) {
     document.querySelectorAll('.tab-page').forEach(p => p.style.display = 'none');
-    document.querySelectorAll('.section-header .tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#main-tabs .tab-btn').forEach(b => b.classList.remove('active'));
     if (btn) btn.classList.add('active');
     const page = document.getElementById('page-' + tab);
     if (page) page.style.display = 'block';
@@ -163,23 +230,37 @@ function switchTab(tab, btn) {
     if (tab === 'iron') loadIronPatterns();
 }
 
-// Stats
+// Stats + auto update
 async function loadStats() {
     try {
         const resp = await fetch('/api/stats');
         const s = await resp.json();
         document.getElementById('stat-total').textContent = s.total || 0;
         document.getElementById('stat-today').textContent = s.today || 0;
-        // tracking stats
+        const ss = s.scan_status || {};
+        document.getElementById('last-scan').textContent = ss.last_scan ? ss.last_scan.slice(5, 16) + ' JST' : '待機中';
+
         const resp2 = await fetch('/api/tracking/stats');
         const t = await resp2.json();
         if (t.total && t.total.total) {
             const wins = (t.total.wins || 0);
             const total = t.total.total;
-            document.getElementById('stat-wr').textContent = total > 0 ? Math.round(wins/total*100) + '%' : '-';
+            document.getElementById('stat-wr').textContent = total > 0 ? Math.round(wins / total * 100) + '%' : '-';
             document.getElementById('stat-avg').textContent = t.total.avg_max_gain ? '+' + t.total.avg_max_gain + '%' : '-';
         }
-    } catch(e) {}
+    } catch (e) {}
+}
+
+// Countdown
+let countdown = 30;
+function updateCountdown() {
+    countdown--;
+    if (countdown <= 0) {
+        countdown = 30;
+        loadStats();
+        loadAlerts();
+    }
+    document.getElementById('next-update').textContent = countdown + '秒後';
 }
 
 // Alerts
@@ -193,21 +274,20 @@ function toggleOther() {
 
 async function loadAlerts(sort, btn) {
     if (btn) {
-        btn.parentElement.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.section-header .tab-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
     }
     try {
-        const resp = await fetch(`/api/alerts?limit=100&sort=${sort || 'recommend'}`);
+        const resp = await fetch('/api/alerts?limit=100&sort=' + (sort || 'recommend'));
         cachedAlerts = await resp.json();
         renderAlerts();
-    } catch(e) {}
+    } catch (e) {}
 }
 
 function renderAlerts() {
     const iron = cachedAlerts.filter(a => (a.iron_patterns || []).length > 0);
     const other = cachedAlerts.filter(a => (a.iron_patterns || []).length === 0);
 
-    // Iron section
     const ironSec = document.getElementById('iron-today-section');
     const ironList = document.getElementById('iron-today-list');
     if (iron.length > 0) {
@@ -219,20 +299,18 @@ function renderAlerts() {
         ironSec.style.display = 'none';
     }
 
-    // Other section
     const otherHeader = document.getElementById('other-alerts-header');
     const el = document.getElementById('alert-list');
-    document.getElementById('alert-count').textContent = `(${cachedAlerts.length}銘柄)`;
+    document.getElementById('alert-count').textContent = '(' + cachedAlerts.length + '銘柄)';
     if (other.length > 0) {
         otherHeader.style.display = 'block';
-        document.getElementById('other-count').textContent = `(${other.length}件)`;
+        document.getElementById('other-count').textContent = '(' + other.length + '件)';
         el.innerHTML = other.map(a => alertCard(a)).join('');
-        if (iron.length > 0 && !otherOpen) {
-            el.style.display = 'none';
-        }
+        if (iron.length > 0 && !otherOpen) el.style.display = 'none';
+        else el.style.display = 'block';
     } else {
         otherHeader.style.display = 'none';
-        el.innerHTML = '';
+        el.innerHTML = iron.length ? '' : '<div class="empty">検知アラートはありません</div>';
     }
 }
 
@@ -242,7 +320,7 @@ function alertCard(a) {
     const vol = a.volume_ratio || 0;
     const score = a.score || 0;
     const sc = score >= 50 ? 'score-high' : score >= 25 ? 'score-mid' : 'score-low';
-    const typeLabels = {'VOLUME_SPIKE':'出来高急増','VOLUME_RISING':'じわ上げ','PRICE_SPIKE':'価格急騰','ACCUMULATION':'買い集め','VOL_REVERSAL':'底打ち反転','SQUEEZE_SETUP':'ブレイク前兆','SOCIAL_VOLUME':'Reddit+出来高','SOCIAL_BUZZ':'Reddit話題','COMBINED':'複合','INSIDER_BUY':'インサイダー','PREMARKET':'プレマーケット'};
+    const typeLabels = { 'VOLUME_SPIKE': '出来高急増', 'VOLUME_RISING': 'じわ上げ', 'PRICE_SPIKE': '価格急騰', 'ACCUMULATION': '買い集め', 'VOL_REVERSAL': '底打ち反転', 'SQUEEZE_SETUP': 'ブレイク前兆', 'SOCIAL_VOLUME': 'Reddit+出来高', 'SOCIAL_BUZZ': 'Reddit話題', 'COMBINED': '複合', 'INSIDER_BUY': 'インサイダー', 'PREMARKET': 'プレマーケット' };
     const type = typeLabels[a.alert_type] || a.alert_type;
     const company = a.company_name || '';
     const time = (a.timestamp || '').slice(5, 16) + ' JST';
@@ -257,133 +335,126 @@ function alertCard(a) {
         const wrColor = ironWr >= 90 ? '#ff0066' : ironWr >= 80 ? '#ff6600' : '#ffaa00';
         const wrBg = ironWr >= 90 ? '#ff006618' : ironWr >= 80 ? '#ff660015' : '#ffaa0012';
         const wrLabel = ironWr >= 90 ? '超鉄板' : ironWr >= 80 ? '鉄板' : '有望';
-        cardStyle = `border:1px solid ${wrColor}40;background:${wrBg};border-radius:6px;margin:4px 0;`;
+        cardStyle = 'border:1px solid ' + wrColor + '40;background:' + wrBg + ';border-radius:6px;margin:4px 0;';
         const repeatN = a.repeat_count || 0;
         const caution = a.caution_sector || '';
-        const repeatNote = repeatN >= 2 ? `<span style="font-size:10px;padding:1px 8px;border-radius:4px;background:#00e5a025;color:#00e5a0;font-weight:700;">リピート${repeatN}回</span>` : '';
-        const cautionNote = caution ? `<span style="font-size:10px;padding:1px 8px;border-radius:4px;background:#ff456030;color:#ff4560;font-weight:700;">⚠${caution}</span>` : '';
-        ironHeader = `<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:${wrColor}20;border-bottom:1px solid ${wrColor}30;border-radius:6px 6px 0 0;flex-wrap:wrap;">
-            <span style="font-size:13px;font-weight:900;color:${wrColor};">${wrLabel} ${ironWr}%</span>
-            <span style="font-size:11px;color:${wrColor}cc;">${a.iron_best_name || ''}</span>
-            ${repeatNote}${cautionNote}
-        </div>`;
-        ironDetail = `<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px;">${ironPatterns.slice(0, 4).map(p => {
-            const pc = p.win_rate >= 90 ? '#ff0066' : p.win_rate >= 80 ? '#ff6600' : '#ffaa00';
+        const repeatNote = repeatN >= 2 ? '<span style="font-size:10px;padding:1px 8px;border-radius:4px;background:#00e5a025;color:#00e5a0;font-weight:700;">リピート' + repeatN + '回</span>' : '';
+        const cautionNote = caution ? '<span style="font-size:10px;padding:1px 8px;border-radius:4px;background:#ff456030;color:#ff4560;font-weight:700;">⚠' + caution + '</span>' : '';
+        ironHeader = '<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:' + wrColor + '20;border-bottom:1px solid ' + wrColor + '30;border-radius:6px 6px 0 0;flex-wrap:wrap;">' +
+            '<span style="font-size:13px;font-weight:900;color:' + wrColor + ';">' + wrLabel + ' ' + ironWr + '%</span>' +
+            '<span style="font-size:11px;color:' + wrColor + 'cc;">' + (a.iron_best_name || '') + '</span>' +
+            repeatNote + cautionNote + '</div>';
+        ironDetail = '<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px;">' + ironPatterns.slice(0, 4).map(function (p) {
+            var pc = p.win_rate >= 90 ? '#ff0066' : p.win_rate >= 80 ? '#ff6600' : '#ffaa00';
             return '<span style="font-size:9px;padding:1px 6px;border-radius:3px;background:' + pc + '18;color:' + pc + ';border:1px solid ' + pc + '25;">' + p.name + ' ' + p.win_rate + '%</span>';
-        }).join('')}</div>`;
+        }).join('') + '</div>';
     }
 
-    let info = [];
-    if (vol) info.push(`出来高 ${vol}x`);
-    const fl = a.float_level || '';
+    var info = [];
+    if (vol) info.push('出来高 ' + vol + 'x');
+    var fl = a.float_level || '';
     if (fl === 'ULTRA_LOW') info.push('超低フロート');
     else if (fl === 'LOW') info.push('低フロート');
 
-    return `<div class="alert-card" style="${cardStyle}">
-        ${ironHeader}
-        <div style="display:flex;gap:10px;align-items:flex-start;padding:${isIron ? '8px 12px' : '0'};">
-            <span class="score-badge ${sc}">${score}</span>
-            <div style="flex:1;min-width:0;">
-                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                    <a class="alert-ticker" href="/stock/${a.ticker}">$${a.ticker}</a>
-                    <span class="badge" style="background:#ff660030;color:#ff6600;">${type}</span>
-                    <span style="color:#8899b0;font-size:12px;">${company}</span>
-                    <span style="font-weight:700;">$${price.toFixed(2)}</span>
-                    <span style="font-size:10px;color:#4a6080;margin-left:auto;">${time}</span>
-                </div>
-                <div style="font-size:11px;color:#6880a0;margin-top:2px;">${info.join(' | ')}</div>
-                ${ironDetail}
-            </div>
-        </div>
-    </div>`;
+    return '<div class="alert-card" style="' + cardStyle + '">' +
+        ironHeader +
+        '<div style="display:flex;gap:10px;align-items:flex-start;padding:' + (isIron ? '8px 12px' : '0') + ';">' +
+        '<span class="score-badge ' + sc + '">' + score + '</span>' +
+        '<div style="flex:1;min-width:0;">' +
+        '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
+        '<a class="alert-ticker" href="/stock/' + a.ticker + '">$' + a.ticker + '</a>' +
+        '<span class="badge" style="background:#ff660030;color:#ff6600;">' + type + '</span>' +
+        '<span style="color:#8899b0;font-size:12px;">' + company + '</span>' +
+        '<span style="font-weight:700;">$' + price.toFixed(2) + '</span>' +
+        '<span style="font-size:10px;color:#4a6080;margin-left:auto;">' + time + '</span>' +
+        '</div>' +
+        '<div style="font-size:11px;color:#6880a0;margin-top:2px;">' + info.join(' | ') + '</div>' +
+        ironDetail +
+        '</div></div></div>';
 }
 
 // Results
 async function loadResults(filter, sort, btn) {
     if (btn) {
-        btn.parentElement.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.parentElement.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
         btn.classList.add('active');
     }
-    const el = document.getElementById('result-list');
+    var el = document.getElementById('result-list');
     try {
-        const resp = await fetch(`/api/tracking/list?filter=${filter}&sort=${sort}&limit=100`);
-        const rows = await resp.json();
+        var resp = await fetch('/api/tracking/list?filter=' + filter + '&sort=' + sort + '&limit=100');
+        var rows = await resp.json();
         if (!rows.length || rows.error) { el.innerHTML = '<div class="empty">データなし</div>'; return; }
-        el.innerHTML = rows.map(r => {
-            const mg = r.max_gain_pct;
-            const rc = r.result === 'WIN' ? '#00e5a0' : r.result === 'LOSS' ? '#ff4560' : '#3d9eff';
-            const rl = {'WIN':'成功','LOSS':'ハズレ','PENDING':'追跡中'}[r.result] || r.result;
-            const date = (r.created_at || '').slice(5, 16) + ' JST';
-            return `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #1a2840;flex-wrap:wrap;">
-                <span style="font-size:10px;padding:2px 8px;border-radius:4px;background:${rc}20;color:${rc};font-weight:700;min-width:45px;text-align:center;">${rl}</span>
-                <a href="/stock/${r.ticker}" style="font-weight:700;color:#3d9eff;text-decoration:none;">$${r.ticker}</a>
-                <span>$${(r.entry_price || 0).toFixed(2)}</span>
-                <span style="color:#ff6600;">vol ${(r.volume_ratio || 0).toFixed(0)}x</span>
-                ${mg != null ? `<span style="font-weight:700;color:${mg >= 25 ? '#00e5a0' : '#ff4560'};">peak ${mg >= 0 ? '+' : ''}${mg.toFixed(0)}%</span>` : ''}
-                <span style="font-size:10px;color:#4a6080;margin-left:auto;">${date}</span>
-            </div>`;
+        el.innerHTML = rows.map(function (r) {
+            var mg = r.max_gain_pct;
+            var rc = r.result === 'WIN' ? '#00e5a0' : r.result === 'LOSS' ? '#ff4560' : '#3d9eff';
+            var rl = { 'WIN': '成功', 'LOSS': 'ハズレ', 'PENDING': '追跡中' }[r.result] || r.result;
+            var date = (r.created_at || '').slice(5, 16) + ' JST';
+            return '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #1a2840;flex-wrap:wrap;">' +
+                '<span style="font-size:10px;padding:2px 8px;border-radius:4px;background:' + rc + '20;color:' + rc + ';font-weight:700;min-width:45px;text-align:center;">' + rl + '</span>' +
+                '<a href="/stock/' + r.ticker + '" style="font-weight:700;color:#3d9eff;text-decoration:none;">$' + r.ticker + '</a>' +
+                '<span>$' + (r.entry_price || 0).toFixed(2) + '</span>' +
+                '<span style="color:#ff6600;">vol ' + (r.volume_ratio || 0).toFixed(0) + 'x</span>' +
+                (mg != null ? '<span style="font-weight:700;color:' + (mg >= 25 ? '#00e5a0' : '#ff4560') + ';">peak ' + (mg >= 0 ? '+' : '') + mg.toFixed(0) + '%</span>' : '') +
+                '<span style="font-size:10px;color:#4a6080;margin-left:auto;">' + date + '</span>' +
+                '</div>';
         }).join('');
-    } catch(e) { el.innerHTML = '<div class="empty">エラー</div>'; }
+    } catch (e) { el.innerHTML = '<div class="empty">エラー</div>'; }
 }
 
 // Iron patterns
 async function loadIronPatterns() {
-    const el = document.getElementById('iron-patterns');
+    var el = document.getElementById('iron-patterns');
     try {
-        const resp = await fetch('/api/iron-patterns');
-        const data = await resp.json();
-        const patterns = data.patterns || [];
+        var resp = await fetch('/api/iron-patterns');
+        var data = await resp.json();
+        var patterns = data.patterns || [];
         if (!patterns.length) { el.innerHTML = '<div class="empty">データ不足</div>'; return; }
-        el.innerHTML = patterns.map(p => {
-            const barW = Math.min(p.win_rate, 100);
-            const barColor = p.win_rate >= 90 ? '#ff0066' : p.win_rate >= 80 ? '#ff6600' : '#ffaa00';
-            return `<div style="padding:10px 12px;border-bottom:1px solid #1a2840;">
-                <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-                    <span style="font-size:14px;font-weight:700;color:${p.win_rate >= 80 ? '#ff0066' : '#c8d8f0'};">${p.name}</span>
-                    <span style="font-size:12px;color:#6880a0;">${p.total}件</span>
-                </div>
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-                    <span style="font-size:11px;color:#6880a0;min-width:45px;">成功率</span>
-                    <div style="flex:1;height:14px;background:#0a1220;border-radius:3px;overflow:hidden;position:relative;">
-                        <div style="width:${barW}%;height:100%;background:${barColor};border-radius:3px;"></div>
-                        <span style="position:absolute;left:6px;top:0;font-size:11px;font-weight:700;color:#fff;">${p.win_rate}%</span>
-                    </div>
-                </div>
-                <div style="display:flex;gap:16px;font-size:11px;color:#6880a0;">
-                    <span>平均最高: <b style="color:#00e5a0;">+${p.avg_gain}%</b></span>
-                    <span>翌日平均: <b style="color:${p.avg_1d >= 0 ? '#00e5a0' : '#ff4560'};">${p.avg_1d >= 0 ? '+' : ''}${p.avg_1d}%</b></span>
-                </div>
-            </div>`;
+        el.innerHTML = patterns.map(function (p) {
+            var barW = Math.min(p.win_rate, 100);
+            var barColor = p.win_rate >= 90 ? '#ff0066' : p.win_rate >= 80 ? '#ff6600' : '#ffaa00';
+            return '<div style="padding:10px 12px;border-bottom:1px solid #1a2840;">' +
+                '<div style="display:flex;justify-content:space-between;margin-bottom:4px;">' +
+                '<span style="font-size:14px;font-weight:700;color:' + (p.win_rate >= 80 ? '#ff0066' : '#c8d8f0') + ';">' + p.name + '</span>' +
+                '<span style="font-size:12px;color:#6880a0;">' + p.total + '件</span></div>' +
+                '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">' +
+                '<span style="font-size:11px;color:#6880a0;min-width:45px;">成功率</span>' +
+                '<div style="flex:1;height:14px;background:#0a1220;border-radius:3px;overflow:hidden;position:relative;">' +
+                '<div style="width:' + barW + '%;height:100%;background:' + barColor + ';border-radius:3px;"></div>' +
+                '<span style="position:absolute;left:6px;top:0;font-size:11px;font-weight:700;color:#fff;">' + p.win_rate + '%</span></div></div>' +
+                '<div style="display:flex;gap:16px;font-size:11px;color:#6880a0;">' +
+                '<span>平均最高: <b style="color:#00e5a0;">+' + p.avg_gain + '%</b></span>' +
+                '<span>翌日平均: <b style="color:' + (p.avg_1d >= 0 ? '#00e5a0' : '#ff4560') + ';">' + (p.avg_1d >= 0 ? '+' : '') + p.avg_1d + '%</b></span></div></div>';
         }).join('');
-    } catch(e) { el.innerHTML = '<div class="empty">エラー</div>'; }
+    } catch (e) { el.innerHTML = '<div class="empty">エラー</div>'; }
 }
 
 // Search
-let searchTimer = null;
+var searchTimer = null;
 function onSearch(q) {
     clearTimeout(searchTimer);
-    const el = document.getElementById('search-results');
+    var el = document.getElementById('search-results');
     if (!q) { el.style.display = 'none'; return; }
-    searchTimer = setTimeout(async () => {
+    searchTimer = setTimeout(async function () {
         try {
-            const resp = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-            const rows = await resp.json();
+            var resp = await fetch('/api/search?q=' + encodeURIComponent(q));
+            var rows = await resp.json();
             if (!rows.length) { el.style.display = 'none'; return; }
             el.style.display = 'block';
-            el.innerHTML = rows.slice(0, 10).map(r =>
-                `<a href="/stock/${r.ticker}"><b>$${r.ticker}</b> ${r.name || ''} ${r.last_price ? '$' + r.last_price.toFixed(2) : ''}</a>`
-            ).join('');
-        } catch(e) { el.style.display = 'none'; }
+            el.innerHTML = rows.slice(0, 10).map(function (r) {
+                return '<a href="/stock/' + r.ticker + '"><b>$' + r.ticker + '</b> ' + (r.name || '') + '</a>';
+            }).join('');
+        } catch (e) { el.style.display = 'none'; }
     }, 300);
 }
-document.addEventListener('click', (e) => {
+document.addEventListener('click', function (e) {
     if (!e.target.closest('#search-input') && !e.target.closest('#search-results'))
         document.getElementById('search-results').style.display = 'none';
 });
 
 // Init
-loadStats(); loadAlerts('recommend');
-setInterval(loadStats, 60000);
+loadStats();
+loadAlerts('recommend');
+setInterval(updateCountdown, 1000);
 </script>
 </body>
 </html>

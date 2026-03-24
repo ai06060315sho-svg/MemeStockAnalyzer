@@ -130,6 +130,7 @@
                 <button class="tab-btn active" onclick="switchTab('alerts',this)">検知アラート</button>
                 <button class="tab-btn" onclick="switchTab('results',this)">検知後の結果</button>
                 <button class="tab-btn" style="color:#ff0066;" onclick="switchTab('iron',this)">鉄板パターン</button>
+                <button class="tab-btn" style="color:#3d9eff;" onclick="switchTab('guide',this)">使い方</button>
             </div>
         </div>
     </div>
@@ -195,6 +196,172 @@
             </div>
             <div id="iron-patterns" style="max-height:600px;overflow-y:auto;">
                 <div class="empty">読み込み中...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 使い方 -->
+    <div id="page-guide" class="tab-page" style="display:none;">
+        <div class="section">
+            <div class="section-header" style="background:#0d1b2e;">
+                <span class="section-title" style="color:#3d9eff;">使い方ガイド</span>
+            </div>
+            <div style="padding:16px;font-size:13px;line-height:2;color:#c8d8f0;">
+
+                <div style="font-size:16px;font-weight:900;color:#ff6600;margin-bottom:8px;">このツールでできること</div>
+                <div style="margin-bottom:16px;padding:12px;background:#0d1b2e;border-radius:8px;">
+                    米国の<b>$5以下の小型株（ペニー株）</b>から、出来高の異常な増加を自動検知します。<br>
+                    30分ごとにスキャンが実行され、急騰の可能性がある銘柄を検出します。
+                </div>
+
+                <div style="font-size:16px;font-weight:900;color:#ff0066;margin-bottom:8px;">画面の見方</div>
+
+                <!-- 今日の鉄板 -->
+                <div style="margin-bottom:12px;padding:12px;background:#1a000a;border:1px solid #ff006630;border-radius:8px;">
+                    <div style="font-size:14px;font-weight:700;color:#ff0066;margin-bottom:6px;">「今日の鉄板」とは？</div>
+                    過去のデータから<b style="color:#ff0066;">勝率70%以上</b>の条件に合致した銘柄です。<br>
+                    勝率が高い順に表示されるので、<b>上にある銘柄ほど過去の実績が良い</b>です。<br><br>
+                    <span style="color:#ff0066;">超鉄板 90%以上</span> ＞ <span style="color:#ff6600;">鉄板 80%以上</span> ＞ <span style="color:#ffaa00;">有望 70%以上</span>
+                </div>
+
+                <!-- スコア -->
+                <div style="margin-bottom:12px;padding:12px;background:#0d1b2e;border:1px solid #1a2840;border-radius:8px;">
+                    <div style="font-size:14px;font-weight:700;color:#ff6600;margin-bottom:6px;">左の数字（スコア）とは？</div>
+                    出来高・フロート（流通株数）・インサイダー買いなどを総合した点数です。<br>
+                    <b>30点以上</b>で注目度が高くなります。<br><br>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <span style="display:inline-block;min-width:32px;height:32px;line-height:32px;text-align:center;border-radius:6px;font-weight:900;background:#ff006630;color:#ff0066;">50+</span><span style="line-height:32px;">高スコア</span>
+                        <span style="display:inline-block;min-width:32px;height:32px;line-height:32px;text-align:center;border-radius:6px;font-weight:900;background:#ff660030;color:#ff6600;">25+</span><span style="line-height:32px;">中スコア</span>
+                        <span style="display:inline-block;min-width:32px;height:32px;line-height:32px;text-align:center;border-radius:6px;font-weight:900;background:#3d9eff20;color:#3d9eff;">0+</span><span style="line-height:32px;">低スコア</span>
+                    </div>
+                </div>
+
+                <!-- 検知タイプ -->
+                <div style="margin-bottom:12px;padding:12px;background:#0d1b2e;border:1px solid #1a2840;border-radius:8px;">
+                    <div style="font-size:14px;font-weight:700;color:#3d9eff;margin-bottom:6px;">検知タイプの意味</div>
+                    <table style="width:100%;font-size:12px;border-collapse:collapse;">
+                        <tr style="border-bottom:1px solid #1a2840;">
+                            <td style="padding:6px;color:#ff6600;font-weight:700;white-space:nowrap;">出来高急増</td>
+                            <td style="padding:6px;">今日の出来高が20日平均の3倍以上。最も基本的な検知</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #1a2840;">
+                            <td style="padding:6px;color:#ff6600;font-weight:700;white-space:nowrap;">じわ上げ</td>
+                            <td style="padding:6px;">出来高が2〜3日連続で増加中。静かに買い集められている可能性</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #1a2840;">
+                            <td style="padding:6px;color:#ff6600;font-weight:700;white-space:nowrap;">買い集め</td>
+                            <td style="padding:6px;">価格はほぼ動いていないが出来高が増加。大口の仕込みの可能性</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #1a2840;">
+                            <td style="padding:6px;color:#ff6600;font-weight:700;white-space:nowrap;">底打ち反転</td>
+                            <td style="padding:6px;">出来高が減少後に急回復。底値からの反転サイン</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #1a2840;">
+                            <td style="padding:6px;color:#ff6600;font-weight:700;white-space:nowrap;">Reddit+出来高</td>
+                            <td style="padding:6px;">Redditで話題になっており、かつ出来高も増加。過去勝率100%</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #1a2840;">
+                            <td style="padding:6px;color:#ff6600;font-weight:700;white-space:nowrap;">複合</td>
+                            <td style="padding:6px;">出来高急増 + インサイダー買いが同時発生</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:6px;color:#ff6600;font-weight:700;white-space:nowrap;">価格急騰</td>
+                            <td style="padding:6px;">1日で+20%以上急騰。天井掴みのリスクがあるため注意</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- バッジの意味 -->
+                <div style="margin-bottom:12px;padding:12px;background:#0d1b2e;border:1px solid #1a2840;border-radius:8px;">
+                    <div style="font-size:14px;font-weight:700;color:#00e5a0;margin-bottom:6px;">バッジの意味</div>
+                    <table style="width:100%;font-size:12px;border-collapse:collapse;">
+                        <tr style="border-bottom:1px solid #1a2840;">
+                            <td style="padding:6px;"><span style="padding:2px 8px;border-radius:4px;background:#00e5a025;color:#00e5a0;font-weight:700;">リピート5回</span></td>
+                            <td style="padding:6px;">同じ銘柄が過去に複数回検知されている（本物のモメンタムの可能性）</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #1a2840;">
+                            <td style="padding:6px;"><span style="padding:2px 8px;border-radius:4px;background:#ff456030;color:#ff4560;font-weight:700;">⚠金融</span></td>
+                            <td style="padding:6px;">金融・通信セクター。過去の勝率が低いため注意が必要</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:6px;white-space:nowrap;">超低フロート / 低フロート</td>
+                            <td style="padding:6px;">流通株数が少ない。少ない買いで大きく動く可能性がある</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- 用語集 -->
+                <div style="font-size:16px;font-weight:900;color:#ffaa00;margin:16px 0 8px;">用語集</div>
+                <div style="padding:12px;background:#0d1b2e;border:1px solid #1a2840;border-radius:8px;">
+                    <table style="width:100%;font-size:12px;border-collapse:collapse;">
+                        <tr style="border-bottom:1px solid #1a2840;">
+                            <td style="padding:6px;color:#ffaa00;font-weight:700;white-space:nowrap;">出来高</td>
+                            <td style="padding:6px;">一定期間に売買された株の数。多いほど注目されている</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #1a2840;">
+                            <td style="padding:6px;color:#ffaa00;font-weight:700;white-space:nowrap;">出来高倍率</td>
+                            <td style="padding:6px;">「今日の出来高 ÷ 過去20日の平均」。10xなら通常の10倍</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #1a2840;">
+                            <td style="padding:6px;color:#ffaa00;font-weight:700;white-space:nowrap;">フロート</td>
+                            <td style="padding:6px;">市場で実際に売買できる株の数。少ないほど価格が動きやすい</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #1a2840;">
+                            <td style="padding:6px;color:#ffaa00;font-weight:700;white-space:nowrap;">インサイダー</td>
+                            <td style="padding:6px;">会社の役員や幹部のこと。彼らが自社株を買うのは好材料</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #1a2840;">
+                            <td style="padding:6px;color:#ffaa00;font-weight:700;white-space:nowrap;">ペニー株</td>
+                            <td style="padding:6px;">$5以下の小型株。値動きが大きく、短期間で急騰する可能性がある</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #1a2840;">
+                            <td style="padding:6px;color:#ffaa00;font-weight:700;white-space:nowrap;">鉄板パターン</td>
+                            <td style="padding:6px;">過去データで勝率70%以上だった条件の組み合わせ</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #1a2840;">
+                            <td style="padding:6px;color:#ffaa00;font-weight:700;white-space:nowrap;">成功 / ハズレ</td>
+                            <td style="padding:6px;">検知後7日以内に+25%に到達=成功、届かない=ハズレ</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:6px;color:#ffaa00;font-weight:700;white-space:nowrap;">プレマーケット</td>
+                            <td style="padding:6px;">米国市場の正規取引（EST 9:30）前の時間外取引（EST 4:00〜）</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- スキャン時間 -->
+                <div style="font-size:16px;font-weight:900;color:#3d9eff;margin:16px 0 8px;">スキャン時間</div>
+                <div style="padding:12px;background:#0d1b2e;border:1px solid #1a2840;border-radius:8px;">
+                    <table style="width:100%;font-size:12px;border-collapse:collapse;">
+                        <tr style="border-bottom:1px solid #1a2840;">
+                            <td style="padding:6px;color:#3d9eff;font-weight:700;">プレマーケット</td>
+                            <td style="padding:6px;">JST 18:00〜23:29（15分間隔）</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #1a2840;">
+                            <td style="padding:6px;color:#3d9eff;font-weight:700;">通常取引</td>
+                            <td style="padding:6px;">JST 23:30〜翌6:00（30分間隔）</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #1a2840;">
+                            <td style="padding:6px;color:#3d9eff;font-weight:700;">アフターマーケット</td>
+                            <td style="padding:6px;">JST 翌6:00〜10:00（30分間隔）</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:6px;color:#3d9eff;font-weight:700;">Reddit監視</td>
+                            <td style="padding:6px;">24時間稼働（30分間隔）</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- 注意事項 -->
+                <div style="font-size:16px;font-weight:900;color:#ff4560;margin:16px 0 8px;">注意事項</div>
+                <div style="padding:12px;background:#ff456008;border:1px solid #ff456030;border-radius:8px;font-size:12px;line-height:1.8;">
+                    ・本サービスは<b>情報提供のみ</b>を目的としています<br>
+                    ・投資助言ではありません。投資判断は<b>自己責任</b>です<br>
+                    ・過去の勝率は将来の結果を保証しません<br>
+                    ・ペニー株は値動きが大きく、<b>大きな損失が発生する可能性</b>があります<br>
+                    ・必ず余裕資金の範囲内で投資してください
+                </div>
+
             </div>
         </div>
     </div>

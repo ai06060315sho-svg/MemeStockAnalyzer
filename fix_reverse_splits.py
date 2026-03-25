@@ -1,16 +1,28 @@
-"""併合銘柄を一括でREVERSE_SPLITに変更するスクリプト"""
+"""併合判定の修正スクリプト
+- 1日で+500%以上の異常な上昇のみREVERSE_SPLIT
+- それ以外は本物の値動きとしてWIN判定
+"""
 import sqlite3
 
-rs_tickers = ['ONCO','RDGT','UCAR','LNAI','PAVS','CMCT','LYRA','MGRX','SER','AZTR','HCWB','WNW','CREG','RBNE','UGRO','BIAF','TWAV','ATXG','HUBC','ORIS','FEED','NXTT','EVTV','QVCGA','LIDR','ORBS','DRMA','GMEX','DWSN','TOVX','TANH','PMAX','OMEX','DVLT','SUNE','CMTL','SOS','SBEV','VEEE','JTAI','GOCO','CYCU','NIXX','ASNS','QNTM','QRHC','MNDR','GNLN','JZ','ISPC','AMZE','BNGO','MLSS','LGVN','EZRA','RZLT','MNTS','IDN','BRTX','NBY','MAXN','EVTL','CHNR','OTLK','INAB','TPST','ADTX','VSA','TLPH','PMCB','FFAI','RPGL','EDBL','SLS','IPW','VBIX','BQ','ASBP','ERNA','PULM','SSP','RAYA','ACHV','BFRI','RETO','SCWO','ENSC','INM','LMFA','AIXI','PNBK','HGBL','IZEA','NUWE','LXRX','AVXL','YYAI','TRIB','CRIS','GROV','IDAI','BIVI','OCGN','COSM','YSG','SURG','AMTX','CISS','TNON','ELDN','YCBD','CLDI','GV','NOTE','ACON','HURA','EP','VUZI','ELAB']
-
 conn = sqlite3.connect('meme_stocks.db')
-total = 0
-for t in rs_tickers:
-    c = conn.execute("UPDATE alert_results SET result='REVERSE_SPLIT' WHERE ticker=? AND result IN ('WIN','BIG_WIN','SMALL_WIN')", (t,)).rowcount
-    if c > 0: total += c
-    conn.execute('UPDATE stock_alerts SET has_reverse_split=1 WHERE ticker=?', (t,))
+
+# まず全REVERSE_SPLITを正しい結果に復元
+c1 = conn.execute("""UPDATE alert_results SET 
+    result = CASE 
+        WHEN max_gain_pct >= 25 THEN 'BIG_WIN'
+        WHEN max_gain_pct >= 15 THEN 'WIN'
+        WHEN max_gain_pct >= 10 THEN 'SMALL_WIN'
+        ELSE 'LOSS'
+    END
+    WHERE result = 'REVERSE_SPLIT' 
+    AND (change_1d_pct IS NULL OR change_1d_pct < 500)""").rowcount
+
+# 1日で+500%以上はREVERSE_SPLIT（異常値）
+c2 = conn.execute("UPDATE alert_results SET result='REVERSE_SPLIT' WHERE change_1d_pct >= 500 AND result != 'REVERSE_SPLIT'").rowcount
+
 conn.commit()
-print(f'{total}件をREVERSE_SPLITに変更')
 wins = conn.execute("SELECT COUNT(*) FROM alert_results WHERE result IN ('WIN','BIG_WIN','SMALL_WIN')").fetchone()[0]
-print(f'修正後WIN: {wins}件')
+rs = conn.execute("SELECT COUNT(*) FROM alert_results WHERE result='REVERSE_SPLIT'").fetchone()[0]
+print(f'WIN復元: {c1}件, 新規RS: {c2}件')
+print(f'結果: WIN={wins} RS={rs}')
 conn.close()

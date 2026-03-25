@@ -620,23 +620,43 @@ function clearViewerDateFilter() {
     loadResults(currentResultFilter, currentResultSort);
 }
 
+var _allResultsCache = null;
+var _allResultsCacheTime = 0;
+
 async function loadResults(filter, sort, btn) {
     if (filter) currentResultFilter = filter;
     if (sort) currentResultSort = sort;
     if (btn) {
-        btn.parentElement.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
+        document.querySelectorAll('#page-results .section-header .tab-btn').forEach(function (b) { b.classList.remove('active'); });
         btn.classList.add('active');
     }
     var el = document.getElementById('result-list');
     var dateFrom = document.getElementById('viewer-date-from').value;
     var dateTo = document.getElementById('viewer-date-to').value;
     try {
-        var url = '/api/tracking/list?filter=' + currentResultFilter + '&sort=' + currentResultSort + '&limit=200';
-        if (dateFrom) url += '&date_from=' + dateFrom;
-        if (dateTo) url += '&date_to=' + dateTo;
-        var resp = await fetch(url);
-        var rows = await resp.json();
-        if (!rows.length || rows.error) { el.innerHTML = '<div class="empty">データなし</div>'; return; }
+        var now = Date.now();
+        // 60秒キャッシュ（タブ切替のたびにAPI呼ばない）
+        if (!_allResultsCache || now - _allResultsCacheTime > 60000 || dateFrom || dateTo) {
+            el.innerHTML = '<div class="empty">読み込み中...</div>';
+            var url = '/api/tracking/list?filter=all&sort=' + currentResultSort + '&limit=500';
+            if (dateFrom) url += '&date_from=' + dateFrom;
+            if (dateTo) url += '&date_to=' + dateTo;
+            var resp = await fetch(url);
+            _allResultsCache = await resp.json();
+            _allResultsCacheTime = now;
+        }
+        // クライアント側でフィルタ
+        var rows = _allResultsCache;
+        if (currentResultFilter === 'win') {
+            rows = rows.filter(function(r) { return r.result === 'WIN' || r.result === 'BIG_WIN' || r.result === 'SMALL_WIN'; });
+        } else if (currentResultFilter === 'lose') {
+            rows = rows.filter(function(r) { return r.result === 'LOSS'; });
+        } else if (currentResultFilter === 'pending') {
+            rows = rows.filter(function(r) { return r.result === 'PENDING'; });
+        } else if (currentResultFilter === 'top') {
+            rows = rows.filter(function(r) { return r.max_gain_pct != null; });
+        }
+        if (!rows.length) { el.innerHTML = '<div class="empty">データなし</div>'; return; }
         cachedViewerResults = rows;
         renderViewerResults(rows);
     } catch (e) { el.innerHTML = '<div class="empty">エラー</div>'; }

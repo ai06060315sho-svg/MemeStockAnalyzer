@@ -676,11 +676,11 @@ function renderViewerResults(rows) {
     var lossCount = decided.length - winCount;
     var pendingCount = sorted.filter(function(r) { return r.result === 'PENDING'; }).length;
     var winRate = decided.length > 0 ? Math.round(winCount / decided.length * 100) : 0;
-    var gains = decided.map(function(r) { return r.max_gain_pct || 0; });
+    var gains = decided.filter(function(r) { return r.result !== 'REVERSE_SPLIT' && (r.max_gain_pct || 0) < 500; }).map(function(r) { return r.max_gain_pct || 0; });
     var avgGain = gains.length > 0 ? gains.reduce(function(a,b) { return a+b; }, 0) / gains.length : 0;
     var winGains = decided.filter(function(r) { return r.result === 'WIN' || r.result === 'BIG_WIN' || r.result === 'SMALL_WIN'; }).map(function(r) { return r.max_gain_pct || 0; });
     var avgWinGain = winGains.length > 0 ? winGains.reduce(function(a,b) { return a+b; }, 0) / winGains.length : 0;
-    var allGains = sorted.filter(function(r) { return r.max_gain_pct != null; }).map(function(r) { return r.max_gain_pct; });
+    var allGains = sorted.filter(function(r) { return r.max_gain_pct != null && r.result !== 'REVERSE_SPLIT' && r.max_gain_pct < 500; }).map(function(r) { return r.max_gain_pct; });
     var maxGainAll = allGains.length > 0 ? Math.max.apply(null, allGains) : 0;
 
     var wrColor = winRate >= 70 ? '#00e5a0' : winRate >= 50 ? '#ffaa00' : '#ff4560';

@@ -559,7 +559,7 @@ def api_tracking_list():
         if sort == 'gain':
             order = "COALESCE(r.max_gain_pct, -999) DESC"
 
-        params.append(limit)
+        params.append(limit * 3)  # 重複除去前に多めに取得
         rows = conn.execute(f"""
             SELECT r.*, a.company_name, a.score_detail as alert_detail,
                    a.price_change_pct as alert_price_change,
@@ -570,7 +570,23 @@ def api_tracking_list():
             ORDER BY {order}
             LIMIT ?
         """, params).fetchall()
-        return jsonify([dict(r) for r in rows])
+        rows = [dict(r) for r in rows]
+
+        # 重複除去: 同一銘柄は最もmax_gain_pctが高いものだけ残す
+        seen = {}
+        for r in rows:
+            t = r['ticker']
+            g = r.get('max_gain_pct') or -999
+            if t not in seen or g > (seen[t].get('max_gain_pct') or -999):
+                seen[t] = r
+        rows = list(seen.values())
+        # 元のソート順を維持
+        if sort == 'gain':
+            rows.sort(key=lambda r: r.get('max_gain_pct') or -999, reverse=True)
+        else:
+            rows.sort(key=lambda r: r.get('created_at') or '', reverse=True)
+        rows = rows[:limit]
+        return jsonify(rows)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     finally:

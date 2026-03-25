@@ -206,7 +206,7 @@ class StockDB:
             conn.close()
 
     # 同一銘柄の1日あたり最大アラート数（タイプ違いを含む）
-    MAX_ALERTS_PER_TICKER_PER_DAY = 2
+    MAX_ALERTS_PER_TICKER_PER_DAY = 1
 
     def save_alert(self, alert: Dict) -> int:
         """アラートを保存"""

@@ -328,7 +328,7 @@
                         <td style="padding:3px 6px;">既に+50%→-40pt / +30%→-25pt / +20%→-15pt</td>
                     </tr>
                 </table>
-                <div style="margin-top:8px;font-size:13px;font-weight:700;color:#ff0066;">+25%以上に到達する銘柄の条件（実績データ）</div>
+                <div style="margin-top:8px;font-size:13px;font-weight:700;color:#ff0066;">+15%以上に到達する銘柄の条件（実績データ）</div>
                 <table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:4px;">
                     <tr style="border-bottom:1px solid #1a2840;">
                         <td style="padding:3px 6px;color:#6880a0;">条件</td>
@@ -376,7 +376,7 @@
                         <td style="padding:3px 6px;color:#6880a0;">+45%</td>
                     </tr>
                 </table>
-                <div style="margin-top:6px;color:#4a6080;">※ 成功 = 検知価格から7日以内に+25%以上に1度でも到達</div>
+                <div style="margin-top:6px;color:#4a6080;">※ 成功 = 検知価格から7日以内に+15%以上に1度でも到達</div>
             </div>
             <!-- 価格帯フィルタ -->
             <div id="price-filter" style="display:flex;gap:4px;padding:6px 8px;overflow-x:auto;-webkit-overflow-scrolling:touch;border-bottom:1px solid #1a2840;">
@@ -521,7 +521,7 @@
             </div>
             <div style="padding:10px 12px;font-size:12px;color:#8899b0;border-bottom:1px solid #1a2840;line-height:1.6;">
                 過去の実績から、<b style="color:#ff0066;">成功率70%以上</b>のパターンを自動分析しています。<br>
-                成功 = 検知価格から1度でも+25%以上に到達。判定期間は7日間。パターンをクリックすると該当銘柄が表示されます。
+                成功 = 検知価格から1度でも+15%以上に到達。判定期間は7日間。パターンをクリックすると該当銘柄が表示されます。
             </div>
             <div id="iron-patterns" style="max-height:600px;overflow-y:auto;">
                 <div class="empty">読み込み中...</div>
@@ -1088,7 +1088,7 @@ function renderFilteredResults() {
         return;
     }
 
-    const rl = {'WIN':'成功(+25%到達)','LOSS':'ハズレ','PENDING':'追跡中(7日)','REVERSE_SPLIT':'株式併合','BIG_WIN':'成功','SMALL_WIN':'成功'};
+    const rl = {'WIN':'成功(+15%到達)','LOSS':'ハズレ','PENDING':'追跡中(7日)','REVERSE_SPLIT':'株式併合','BIG_WIN':'成功','SMALL_WIN':'成功'};
     const tl2 = {'VOLUME_SPIKE':'出来高','VOLUME_RISING':'じわ上げ','INSIDER_BUY':'内部者','COMBINED':'複合','PRICE_SPIKE':'急騰','PREMARKET':'PM','ACCUMULATION':'買集め','VOL_REVERSAL':'底打ち','SQUEEZE_SETUP':'前兆','SOCIAL_BUZZ':'Reddit','SOCIAL_VOLUME':'Reddit+Vol'};
     function pct(v) {
         if (v == null) return '<span class="pct-flat">---</span>';
@@ -1106,9 +1106,10 @@ function renderFilteredResults() {
         return Math.max(0, Math.min(5, stars));
     }
 
-    // 統計サマリー（常時表示）
-    const decided = filtered.filter(r => r.result === 'WIN' || r.result === 'LOSS');
-    const wins = decided.filter(r => r.result === 'WIN').length;
+    // 統計サマリー（常時表示）※REVERSE_SPLIT除外
+    const nonRS = filtered.filter(r => r.result !== 'REVERSE_SPLIT');
+    const decided = nonRS.filter(r => r.result === 'WIN' || r.result === 'BIG_WIN' || r.result === 'SMALL_WIN' || r.result === 'LOSS');
+    const wins = decided.filter(r => r.result === 'WIN' || r.result === 'BIG_WIN' || r.result === 'SMALL_WIN').length;
     const losses = decided.length - wins;
     const pending = filtered.filter(r => r.result === 'PENDING').length;
     const wr = decided.length > 0 ? Math.round(wins/decided.length*100) : 0;

@@ -187,7 +187,7 @@ class StockScanner:
                             prev_close_chk = float(close_series.iloc[-2])
                             if prev_close_chk > 0:
                                 price_change_pct = (current_price - prev_close_chk) / prev_close_chk * 100
-                                if price_change_pct >= 50:
+                                if price_change_pct >= 30:
                                     logger.info(f"SKIP {sym}: already +{price_change_pct:.0f}% (ceiling risk)")
                                     continue
 

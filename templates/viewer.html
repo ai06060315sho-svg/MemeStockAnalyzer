@@ -206,6 +206,14 @@
                     <button class="tab-btn" style="color:#ff4560;" onclick="loadResults('lose',currentResultSort,this)">ハズレ</button>
                 </div>
             </div>
+            <!-- 価格帯フィルタ -->
+            <div style="display:flex;gap:4px;padding:6px 8px;overflow-x:auto;border-bottom:1px solid #1a2840;">
+                <button class="tab-btn active" onclick="setViewerPriceFilter('all',this)" style="font-size:11px;padding:4px 10px;">全て</button>
+                <button class="tab-btn" onclick="setViewerPriceFilter('0-1',this)" style="font-size:11px;padding:4px 10px;">$0-0.99</button>
+                <button class="tab-btn" onclick="setViewerPriceFilter('1-2',this)" style="font-size:11px;padding:4px 10px;">$1-1.99</button>
+                <button class="tab-btn" onclick="setViewerPriceFilter('2-3',this)" style="font-size:11px;padding:4px 10px;">$2-2.99</button>
+                <button class="tab-btn" onclick="setViewerPriceFilter('3-5',this)" style="font-size:11px;padding:4px 10px;">$3-5.00</button>
+            </div>
             <!-- ソートボタン -->
             <div class="sort-buttons">
                 <span style="color:#888;font-size:12px;margin-right:8px;">並び替え:</span>
@@ -239,7 +247,7 @@
             </div>
             <div style="padding:10px 12px;font-size:12px;color:#8899b0;border-bottom:1px solid #1a2840;line-height:1.6;">
                 過去の実績から、<b style="color:#ff0066;">成功率70%以上</b>のパターンを分析しています。<br>
-                成功 = 検知価格から7日以内に+25%以上に到達。
+                成功 = 検知価格から7日以内に+15%以上に到達。
             </div>
             <div id="iron-patterns" style="max-height:600px;overflow-y:auto;">
                 <div class="empty">読み込み中...</div>
@@ -367,7 +375,7 @@
                         </tr>
                         <tr style="border-bottom:1px solid #1a2840;">
                             <td style="padding:6px;color:#ffaa00;font-weight:700;white-space:nowrap;">成功 / ハズレ</td>
-                            <td style="padding:6px;">検知後7日以内に+25%に到達=成功、届かない=ハズレ</td>
+                            <td style="padding:6px;">検知後7日以内に+15%に到達=成功、届かない=ハズレ</td>
                         </tr>
                         <tr>
                             <td style="padding:6px;color:#ffaa00;font-weight:700;white-space:nowrap;">プレマーケット</td>
@@ -592,6 +600,20 @@ var currentResultFilter = 'all';
 var currentResultSort = 'date';
 var currentSortOrder = 'newest'; // newest or oldest
 var cachedViewerResults = [];
+var currentViewerPriceFilter = 'all';
+
+function setViewerPriceFilter(f, btn) {
+    currentViewerPriceFilter = f;
+    btn.parentElement.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    renderViewerResults();
+}
+function filterViewerByPrice(rows) {
+    if (currentViewerPriceFilter === 'all') return rows;
+    var parts = currentViewerPriceFilter.split('-');
+    var lo = parseFloat(parts[0]), hi = parseFloat(parts[1]);
+    return rows.filter(function(r) { var p = r.entry_price || 0; return p >= lo && p < hi; });
+}
 
 function sortResults(order) {
     currentSortOrder = order;
@@ -668,6 +690,8 @@ async function loadResults(filter, sort, btn) {
         });
         // seenに残った最良のもので再構築
         rows = Object.values(seen);
+        // 価格帯フィルター適用
+        rows = filterViewerByPrice(rows);
         if (!rows.length) { el.innerHTML = '<div class="empty">データなし</div>'; return; }
         cachedViewerResults = rows;
         renderViewerResults(rows);
@@ -738,7 +762,7 @@ function renderViewerResults(rows) {
         '<div style="font-size:9px;color:#6880a0;">最大上昇</div></div>' +
         '</div></div>';
 
-    var rl = {'WIN':'成功(+25%到達)','BIG_WIN':'成功','SMALL_WIN':'成功','LOSS':'ハズレ','PENDING':'追跡中(7日)'};
+    var rl = {'WIN':'成功(+15%到達)','BIG_WIN':'成功','SMALL_WIN':'成功','LOSS':'ハズレ','PENDING':'追跡中(7日)'};
     var tl2 = {'VOLUME_SPIKE':'出来高','VOLUME_RISING':'じわ上げ','INSIDER_BUY':'内部者','COMBINED':'複合','PRICE_SPIKE':'急騰','PREMARKET':'PM','ACCUMULATION':'買集め','VOL_REVERSAL':'底打ち','SQUEEZE_SETUP':'前兆','SOCIAL_BUZZ':'Reddit','SOCIAL_VOLUME':'Reddit+Vol'};
 
     el.innerHTML = statsHtml + sorted.map(function (r) {

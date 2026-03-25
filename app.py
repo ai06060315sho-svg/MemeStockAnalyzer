@@ -8,7 +8,7 @@ import time
 import traceback
 import pandas as pd
 from datetime import datetime, timezone, timedelta
-from flask import Flask, render_template, jsonify, request, redirect
+from flask import Flask, render_template, jsonify, request, redirect, after_this_request
 from flask_socketio import SocketIO
 from config import Config
 from stock_db import StockDB
@@ -50,6 +50,22 @@ Config.validate()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = Config.FLASK_SECRET_KEY
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 300  # 静的ファイル5分キャッシュ
+
+
+@app.after_request
+def add_gzip(response):
+    """レスポンスをgzip圧縮"""
+    import gzip
+    if response.content_type and ('json' in response.content_type or 'html' in response.content_type or 'javascript' in response.content_type):
+        if len(response.data) > 500:  # 500バイト以上のみ圧縮
+            accept = request.headers.get('Accept-Encoding', '')
+            if 'gzip' in accept:
+                response.data = gzip.compress(response.data)
+                response.headers['Content-Encoding'] = 'gzip'
+                response.headers['Content-Length'] = len(response.data)
+    return response
+app.jinja_env.cache = {}  # テンプレートキャッシュ有効
 cors_origins = [o.strip() for o in Config.CORS_ORIGINS.split(',')]
 socketio = SocketIO(app, cors_allowed_origins=cors_origins, async_mode='threading')
 
@@ -547,11 +563,11 @@ def api_tracking_list():
             conditions.append("r.max_gain_pct IS NOT NULL")
 
         if date_from:
-            conditions.append("substr(r.created_at, 1, 10) >= ?")
+            conditions.append("r.created_at >= ?")
             params.append(date_from)
         if date_to:
-            conditions.append("substr(r.created_at, 1, 10) <= ?")
-            params.append(date_to)
+            conditions.append("r.created_at < ?")
+            params.append(date_to + 'T23:59:59')
 
         where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
 

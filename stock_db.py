@@ -131,6 +131,11 @@ class StockDB:
             conn.execute("CREATE INDEX IF NOT EXISTS idx_results_alert ON alert_results (alert_id)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_results_result ON alert_results (result)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_results_float ON alert_results (float_level)")
+            # パフォーマンス用インデックス
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_results_ticker ON alert_results(ticker)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_results_created ON alert_results(created_at)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_results_gain ON alert_results(max_gain_pct)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_alerts_timestamp ON stock_alerts(timestamp)")
 
             # alert_resultsに不足カラム追加
             try:

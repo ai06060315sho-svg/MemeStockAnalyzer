@@ -5,10 +5,13 @@ import logging
 import os
 import threading
 import time
+import time as _time
 import traceback
+from collections import defaultdict
+from functools import wraps
 import pandas as pd
 from datetime import datetime, timezone, timedelta
-from flask import Flask, render_template, jsonify, request, redirect, after_this_request
+from flask import Flask, render_template, render_template_string, jsonify, request, redirect, session, after_this_request
 from flask_socketio import SocketIO
 from config import Config
 from stock_db import StockDB
@@ -54,8 +57,15 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 300  # 静的ファイル5分キャッ
 
 
 @app.after_request
-def add_gzip(response):
-    """レスポンスをgzip圧縮"""
+def after_request_handler(response):
+    """セキュリティヘッダー追加 + gzip圧縮"""
+    # セキュリティヘッダー
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+
+    # gzip圧縮
     import gzip
     if response.content_type and ('json' in response.content_type or 'html' in response.content_type or 'javascript' in response.content_type):
         if len(response.data) > 500:  # 500バイト以上のみ圧縮
@@ -68,6 +78,77 @@ def add_gzip(response):
 app.jinja_env.cache = {}  # テンプレートキャッシュ有効
 cors_origins = [o.strip() for o in Config.CORS_ORIGINS.split(',')]
 socketio = SocketIO(app, cors_allowed_origins=cors_origins, async_mode='threading')
+
+# === レート制限 ===
+_rate_limit = defaultdict(list)
+
+
+@app.before_request
+def check_rate_limit():
+    """同一IPから60秒間に60リクエストまで"""
+    if request.path.startswith('/static'):
+        return
+    if request.path.startswith('/socket.io'):
+        return
+    ip = request.remote_addr
+    now = _time.time()
+    _rate_limit[ip] = [t for t in _rate_limit[ip] if now - t < 60]
+    if len(_rate_limit[ip]) >= 60:
+        return jsonify({'error': 'Rate limit exceeded'}), 429
+    _rate_limit[ip].append(now)
+
+
+# === 管理者パスワード保護 ===
+LOGIN_HTML = '''<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>管理者ログイン</title>
+<style>body{background:#060b14;color:#c8d8f0;display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;}
+.box{background:#0d1b2e;padding:40px;border-radius:12px;text-align:center;}
+input{padding:10px;border:1px solid #1a2840;border-radius:6px;background:#060b14;color:#fff;font-size:16px;width:250px;margin:10px 0;}
+button{padding:10px 30px;background:#3d9eff;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:16px;}
+.err{color:#ff4560;font-size:13px;}</style></head>
+<body><div class="box"><h2>管理者ログイン</h2>
+<form method="POST"><input type="password" name="password" placeholder="パスワード" autofocus>
+<br><button type="submit">ログイン</button></form>
+{% if error %}<p class="err">{{ error }}</p>{% endif %}</div></body></html>'''
+
+
+def admin_required(f):
+    """管理者ページ用デコレータ（未ログインはログイン画面へリダイレクト）"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get('is_admin'):
+            return redirect('/login')
+        return f(*args, **kwargs)
+    return decorated
+
+
+def api_admin_required(f):
+    """管理者API用デコレータ（未ログインは401を返す）"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get('is_admin'):
+            return jsonify({'error': 'Unauthorized'}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        admin_pw = os.environ.get('ADMIN_PASSWORD', 'admin123')
+        if password == admin_pw:
+            session['is_admin'] = True
+            return redirect('/')
+        return render_template_string(LOGIN_HTML, error='パスワードが違います')
+    return render_template_string(LOGIN_HTML, error='')
+
+
+@app.route('/logout')
+def logout():
+    session.pop('is_admin', None)
+    return redirect('/view')
+
 
 # 認証設定（.envで制御）
 # ADMIN: 管理者（スキャン実行・全機能アクセス可能）
@@ -97,6 +178,14 @@ def _check_auth():
         return
     # API内部通信（SocketIO等）はスキップ
     if request.path.startswith('/socket.io'):
+        return
+    # 公開ページ・ログイン・静的ファイル・公開APIはBasic Auth不要
+    public_paths = ('/login', '/logout', '/view', '/static/',
+                    '/api/tracking/', '/api/iron-patterns', '/api/search')
+    if any(request.path == p or request.path.startswith(p) for p in public_paths):
+        return
+    # セッション認証済みの管理者はBasic Authスキップ
+    if session.get('is_admin'):
         return
     role = _get_user_role()
     if not role:
@@ -160,10 +249,8 @@ scan_status = {
 
 # === Routes ===
 @app.route('/')
+@admin_required
 def index():
-    role = _get_user_role()
-    if role == 'user':
-        return render_template('viewer.html')
     return render_template('dashboard.html')
 
 
@@ -174,27 +261,29 @@ def viewer():
 
 
 @app.route('/portal')
+@admin_required
 def portal_redirect():
     """ポータルへリダイレクト（管理者のみ）"""
-    if _get_user_role() != 'admin':
-        return 'Access denied', 403
     host = request.host.split(':')[0]
     return redirect(f'http://{host}:3000')
 
 
 @app.route('/settings')
+@admin_required
 def settings_page():
     """設定ページ（テーマ等）"""
     return render_template('settings.html')
 
 
 @app.route('/criteria')
+@admin_required
 def criteria_page():
     """基準ページ（シグナル・スコア等）"""
     return render_template('criteria.html')
 
 
 @app.route('/api/settings')
+@api_admin_required
 def api_settings():
     """現在の設定値をJSON返却"""
     from result_tracker import ResultTracker as RT
@@ -770,6 +859,7 @@ def _enrich_alert_with_iron(alert):
 
 
 @app.route('/api/alerts')
+@api_admin_required
 def api_alerts():
     limit = request.args.get('limit', 50, type=int)
     offset = request.args.get('offset', 0, type=int)
@@ -903,12 +993,14 @@ def api_reddit_trending():
 
 
 @app.route('/api/alerts/<ticker>')
+@api_admin_required
 def api_alerts_ticker(ticker):
     alerts = db.get_alerts_by_ticker(ticker.upper())
     return jsonify(alerts)
 
 
 @app.route('/api/stats')
+@api_admin_required
 def api_stats():
     stats = db.get_stats()
     stats['scan_status'] = scan_status
@@ -916,6 +1008,7 @@ def api_stats():
 
 
 @app.route('/api/scan', methods=['POST'])
+@api_admin_required
 def api_scan():
     """手動スキャン実行"""
     with _scan_lock:
@@ -984,6 +1077,7 @@ def api_watchlist_remove(ticker):
 
 
 @app.route('/api/alerts/filtered')
+@api_admin_required
 def api_alerts_filtered():
     """ユーザーフィルタ付きアラート取得API"""
     min_score = request.args.get('min_score', 0, type=int)
@@ -1038,6 +1132,7 @@ _economic_cache = {'data': None, 'time': 0}
 
 
 @app.route('/api/economic')
+@api_admin_required
 def api_economic():
     """経済指標の現在値を取得（10分キャッシュ）"""
     now = time.time()

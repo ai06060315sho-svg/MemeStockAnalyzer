@@ -535,7 +535,7 @@ def api_tracking_list():
         date_from = request.args.get('date_from', '')  # YYYY-MM-DD
         date_to = request.args.get('date_to', '')      # YYYY-MM-DD
 
-        conditions = []
+        conditions = ["r.result != 'REVERSE_SPLIT'"]  # 株式併合は常に除外
         params = []
         if filter_type == 'pending':
             conditions.append("r.result = 'PENDING'")

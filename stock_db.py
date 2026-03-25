@@ -405,7 +405,7 @@ class StockDB:
 
             # 全体統計
             total = conn.execute(
-                "SELECT COUNT(*) as c FROM alert_results WHERE result != 'PENDING'"
+                "SELECT COUNT(*) as c FROM alert_results WHERE result NOT IN ('PENDING', 'REVERSE_SPLIT')"
             ).fetchone()['c']
 
             if total == 0:
@@ -422,7 +422,7 @@ class StockDB:
                     ROUND(AVG(change_1d_pct), 1) as avg_1d,
                     ROUND(AVG(change_3d_pct), 1) as avg_3d,
                     ROUND(AVG(change_7d_pct), 1) as avg_7d
-                FROM alert_results WHERE result != 'PENDING'
+                FROM alert_results WHERE result NOT IN ('PENDING', 'REVERSE_SPLIT')
             """).fetchone()
 
             # スコア帯別の成績
@@ -436,7 +436,7 @@ class StockDB:
                     COUNT(*) as n,
                     ROUND(AVG(max_gain_pct), 1) as avg_max_gain,
                     SUM(CASE WHEN result IN ('BIG_WIN','WIN') THEN 1 ELSE 0 END) as wins
-                FROM alert_results WHERE result != 'PENDING'
+                FROM alert_results WHERE result NOT IN ('PENDING', 'REVERSE_SPLIT')
                 GROUP BY score_band
             """).fetchall()
 
@@ -446,7 +446,7 @@ class StockDB:
                     COUNT(*) as n,
                     ROUND(AVG(max_gain_pct), 1) as avg_max_gain,
                     SUM(CASE WHEN result IN ('BIG_WIN','WIN') THEN 1 ELSE 0 END) as wins
-                FROM alert_results WHERE result != 'PENDING'
+                FROM alert_results WHERE result NOT IN ('PENDING', 'REVERSE_SPLIT')
                 GROUP BY alert_type
             """).fetchall()
 
@@ -456,7 +456,7 @@ class StockDB:
                     COUNT(*) as n,
                     ROUND(AVG(max_gain_pct), 1) as avg_max_gain,
                     SUM(CASE WHEN result IN ('BIG_WIN','WIN') THEN 1 ELSE 0 END) as wins
-                FROM alert_results WHERE result != 'PENDING' AND float_level IS NOT NULL
+                FROM alert_results WHERE result NOT IN ('PENDING', 'REVERSE_SPLIT') AND float_level IS NOT NULL
                 GROUP BY float_level
             """).fetchall()
 

@@ -207,8 +207,11 @@
             </div>
             <!-- ソートボタン -->
             <div class="sort-buttons">
+                <span style="color:#888;font-size:12px;margin-right:8px;">並び替え:</span>
                 <button onclick="sortResults('newest')" class="sort-btn active" id="sort-newest">新しい順</button>
                 <button onclick="sortResults('oldest')" class="sort-btn" id="sort-oldest">古い順</button>
+                <button onclick="sortResults('gain_high')" class="sort-btn" id="sort-gain_high">上昇率↑高い順</button>
+                <button onclick="sortResults('gain_low')" class="sort-btn" id="sort-gain_low">上昇率↓低い順</button>
             </div>
             <!-- 日付フィルタ -->
             <div class="date-filter">
@@ -591,8 +594,9 @@ var cachedViewerResults = [];
 
 function sortResults(order) {
     currentSortOrder = order;
-    document.getElementById('sort-newest').classList.toggle('active', order === 'newest');
-    document.getElementById('sort-oldest').classList.toggle('active', order === 'oldest');
+    document.querySelectorAll('.sort-btn').forEach(function(b) { b.classList.remove('active'); });
+    var btn = document.getElementById('sort-' + order);
+    if (btn) btn.classList.add('active');
     if (cachedViewerResults.length) {
         renderViewerResults(cachedViewerResults);
     }
@@ -658,6 +662,10 @@ function renderViewerResults(rows) {
     var sorted = rows.slice();
     if (currentSortOrder === 'oldest') {
         sorted.sort(function(a, b) { return (a.created_at || '').localeCompare(b.created_at || ''); });
+    } else if (currentSortOrder === 'gain_high') {
+        sorted.sort(function(a, b) { return (b.max_gain_pct || 0) - (a.max_gain_pct || 0); });
+    } else if (currentSortOrder === 'gain_low') {
+        sorted.sort(function(a, b) { return (a.max_gain_pct || 0) - (b.max_gain_pct || 0); });
     } else {
         sorted.sort(function(a, b) { return (b.created_at || '').localeCompare(a.created_at || ''); });
     }

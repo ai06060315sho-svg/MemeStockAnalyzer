@@ -182,6 +182,15 @@ class StockScanner:
                         if current_price > Config.MAX_PRICE or current_price < 0.01:
                             continue
 
+                        # 既に急騰済みの銘柄を除外（天井掴み防止）
+                        if len(close_series) >= 2:
+                            prev_close_chk = float(close_series.iloc[-2])
+                            if prev_close_chk > 0:
+                                price_change_pct = (current_price - prev_close_chk) / prev_close_chk * 100
+                                if price_change_pct >= 50:
+                                    logger.info(f"SKIP {sym}: already +{price_change_pct:.0f}% (ceiling risk)")
+                                    continue
+
                         current_vol = int(vol_series.iloc[-1])
                         avg_vol_20 = int(vol_series.iloc[-21:-1].mean()) if len(vol_series) >= 21 else int(vol_series.iloc[:-1].mean())
 

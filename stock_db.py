@@ -435,7 +435,7 @@ class StockDB:
                     END as score_band,
                     COUNT(*) as n,
                     ROUND(AVG(max_gain_pct), 1) as avg_max_gain,
-                    SUM(CASE WHEN result IN ('BIG_WIN','WIN') THEN 1 ELSE 0 END) as wins
+                    SUM(CASE WHEN result IN ('BIG_WIN','WIN','SMALL_WIN') THEN 1 ELSE 0 END) as wins
                 FROM alert_results WHERE result NOT IN ('PENDING', 'REVERSE_SPLIT')
                 GROUP BY score_band
             """).fetchall()
@@ -445,7 +445,7 @@ class StockDB:
                 SELECT alert_type,
                     COUNT(*) as n,
                     ROUND(AVG(max_gain_pct), 1) as avg_max_gain,
-                    SUM(CASE WHEN result IN ('BIG_WIN','WIN') THEN 1 ELSE 0 END) as wins
+                    SUM(CASE WHEN result IN ('BIG_WIN','WIN','SMALL_WIN') THEN 1 ELSE 0 END) as wins
                 FROM alert_results WHERE result NOT IN ('PENDING', 'REVERSE_SPLIT')
                 GROUP BY alert_type
             """).fetchall()
@@ -455,7 +455,7 @@ class StockDB:
                 SELECT float_level,
                     COUNT(*) as n,
                     ROUND(AVG(max_gain_pct), 1) as avg_max_gain,
-                    SUM(CASE WHEN result IN ('BIG_WIN','WIN') THEN 1 ELSE 0 END) as wins
+                    SUM(CASE WHEN result IN ('BIG_WIN','WIN','SMALL_WIN') THEN 1 ELSE 0 END) as wins
                 FROM alert_results WHERE result NOT IN ('PENDING', 'REVERSE_SPLIT') AND float_level IS NOT NULL
                 GROUP BY float_level
             """).fetchall()

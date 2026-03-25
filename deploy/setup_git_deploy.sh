@@ -107,3 +107,7 @@ echo "  bash $APP_DIR/deploy/auto_update.sh"
 echo ""
 echo "データをリセットするには:"
 echo "  bash $APP_DIR/deploy/reset_data.sh"
+echo ""
+
+# SSL自動更新（毎月1日の3時に実行）
+# echo "0 3 1 * * /home/memestock/meme-stock/deploy/ssl_renew.sh" | crontab -l 2>/dev/null; crontab -

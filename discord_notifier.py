@@ -204,9 +204,10 @@ class DiscordNotifier:
         iron_patterns = alert.get('iron_patterns', [])
         if iron_patterns:
             best = iron_patterns[0]
-            desc += f"\n\n**鉄板パターン該当**: {best['name']}（過去勝率{best['win_rate']}%）"
+            desc += f"\n\n🔥 **鉄板パターン: {best['name']} (勝率{best['win_rate']}%)**"
             if len(iron_patterns) > 1:
-                desc += f" 他{len(iron_patterns)-1}条件"
+                others = ', '.join(f"{p['name']}({p['win_rate']}%)" for p in iron_patterns[1:3])
+                desc += f"\n　他: {others}"
 
         embed = {
             'title': f'{type_label}: ${ticker} [{urgency}]',

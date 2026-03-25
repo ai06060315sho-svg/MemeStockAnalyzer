@@ -16,9 +16,11 @@ logger = logging.getLogger('MemeStock.Tracker')
 class ResultTracker:
     """アラート発生後の価格変動を追跡"""
 
-    # 結果判定基準（検知価格から1度でも到達したか）
-    WIN_PCT = 25.0        # +25%以上到達 → 成功（利益機会あり）
-    # 7日間で+25%に1度も届かない → ハズレ
+    # 結果判定基準（検知価格から1度でも到達したか）- 段階的判定
+    BIG_WIN_PCT = 25.0    # +25%以上到達 → 大成功
+    WIN_PCT = 15.0        # +15%以上到達 → 成功
+    SMALL_WIN_PCT = 10.0  # +10%以上到達 → 小成功
+    # 7日間で+10%に1度も届かない → ハズレ
 
     def __init__(self, db):
         self.db = db
@@ -199,18 +201,18 @@ class ResultTracker:
                     updated += 1
                     continue
 
-            # === 結果判定 ===
-            # 基準: 検知価格から1度でも+25%に到達 → 成功（利益機会あり）
-            #       7日間で+25%に1度も届かない → ハズレ
+            # === 結果判定（段階的） ===
             max_gain = result_data.get('max_gain_pct', 0) or 0
 
-            if max_gain >= self.WIN_PCT:
-                # 1度でも+25%に到達 → 即座に成功確定（何日目でも）
-                result_data['result'] = 'WIN'
+            if max_gain >= self.BIG_WIN_PCT:
+                result_data['result'] = 'BIG_WIN'      # +25%以上到達
+            elif max_gain >= self.WIN_PCT:
+                result_data['result'] = 'WIN'           # +15%以上到達
+            elif max_gain >= self.SMALL_WIN_PCT:
+                result_data['result'] = 'SMALL_WIN'     # +10%以上到達
             elif days_elapsed >= 7:
-                # 7日間で+25%に届かなかった → ハズレ
-                result_data['result'] = 'LOSS'
-            # 7日未満で+25%未到達 → まだPENDING（チャンスが残っている）
+                result_data['result'] = 'LOSS'          # 7日間で+10%未満
+            # 7日未満で+10%未到達 → まだPENDING（チャンスが残っている）
 
             self.db.update_tracking(record['id'], result_data)
             updated += 1

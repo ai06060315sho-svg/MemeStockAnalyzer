@@ -1,5 +1,5 @@
 """併合判定の修正スクリプト
-- 1日で+500%以上の異常な上昇のみREVERSE_SPLIT
+- max_gain_pct >= 500%（1週間で5倍以上）は異常値としてREVERSE_SPLIT
 - それ以外は本物の値動きとしてWIN判定
 """
 import sqlite3
@@ -15,10 +15,10 @@ c1 = conn.execute("""UPDATE alert_results SET
         ELSE 'LOSS'
     END
     WHERE result = 'REVERSE_SPLIT' 
-    AND (change_1d_pct IS NULL OR change_1d_pct < 500)""").rowcount
+    AND max_gain_pct < 500""").rowcount
 
-# 1日で+500%以上はREVERSE_SPLIT（異常値）
-c2 = conn.execute("UPDATE alert_results SET result='REVERSE_SPLIT' WHERE change_1d_pct >= 500 AND result != 'REVERSE_SPLIT'").rowcount
+# max_gain_pct >= 500はREVERSE_SPLIT（異常値）
+c2 = conn.execute("UPDATE alert_results SET result='REVERSE_SPLIT' WHERE max_gain_pct >= 500 AND result != 'REVERSE_SPLIT'").rowcount
 
 conn.commit()
 wins = conn.execute("SELECT COUNT(*) FROM alert_results WHERE result IN ('WIN','BIG_WIN','SMALL_WIN')").fetchone()[0]

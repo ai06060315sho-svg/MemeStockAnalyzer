@@ -50,6 +50,16 @@
         .pct-down { color:#ff4560; }
         .pct-flat { color:#6880a0; }
         .pct-big { color:#ff0066; }
+        /* ソートボタン・日付フィルタ */
+        .sort-buttons { display:flex; gap:8px; margin-bottom:0; padding:6px 8px; border-bottom:1px solid #1a2840; }
+        .sort-btn { padding:6px 16px; border:1px solid #1a2840; border-radius:6px; background:#0d1b2e; color:#6880a0; cursor:pointer; font-size:13px; }
+        .sort-btn:hover { border-color:#3d9eff; color:#3d9eff; }
+        .sort-btn.active { background:#4CAF50; color:white; border-color:#4CAF50; }
+        .date-filter { display:flex; gap:8px; padding:6px 8px; align-items:center; border-bottom:1px solid #1a2840; flex-wrap:wrap; }
+        .date-filter input[type="date"] { padding:6px 12px; border:1px solid #1a2840; border-radius:6px; background:#0d1b2e; color:#c8d8f0; font-size:13px; }
+        .date-filter .preset-btn { background:none; border:1px solid #1a2840; color:#6880a0; padding:3px 8px; border-radius:4px; cursor:pointer; font-size:10px; }
+        .date-filter .preset-btn:hover { border-color:#3d9eff; color:#3d9eff; }
+        .date-filter .clear-btn { background:none; border:1px solid #1a2840; color:#ff4560; padding:3px 8px; border-radius:4px; cursor:pointer; font-size:10px; }
         /* 免責同意モーダル */
         .modal-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.85); z-index:9999; display:flex; align-items:center; justify-content:center; }
         .modal-box { background:#0a1628; border:1px solid #1a2840; border-radius:12px; max-width:480px; width:90%; padding:24px; }
@@ -194,6 +204,22 @@
                     <button class="tab-btn" style="color:#00e5a0;" onclick="loadResults('win','date',this)">成功</button>
                     <button class="tab-btn" style="color:#ff4560;" onclick="loadResults('lose','date',this)">ハズレ</button>
                 </div>
+            </div>
+            <!-- ソートボタン -->
+            <div class="sort-buttons">
+                <button onclick="sortResults('newest')" class="sort-btn active" id="sort-newest">新しい順</button>
+                <button onclick="sortResults('oldest')" class="sort-btn" id="sort-oldest">古い順</button>
+            </div>
+            <!-- 日付フィルタ -->
+            <div class="date-filter">
+                <input type="date" id="viewer-date-from" title="開始日">
+                <span style="color:#6880a0;font-size:11px;">〜</span>
+                <input type="date" id="viewer-date-to" title="終了日">
+                <button class="preset-btn" onclick="setViewerDatePreset('today')">今日</button>
+                <button class="preset-btn" onclick="setViewerDatePreset('yesterday')">昨日</button>
+                <button class="preset-btn" onclick="setViewerDatePreset('week')">今週</button>
+                <button class="preset-btn" onclick="setViewerDatePreset('month')">今月</button>
+                <button class="clear-btn" onclick="clearViewerDateFilter()">クリア</button>
             </div>
             <div id="result-list" style="max-height:600px;overflow-y:auto;">
                 <div class="empty">データを読み込み中...</div>
@@ -557,149 +583,200 @@ function alertCard(a) {
         '</div></div></div>';
 }
 
-// Results
+// Results - state
+var currentResultFilter = 'all';
+var currentResultSort = 'date';
+var currentSortOrder = 'newest'; // newest or oldest
+var cachedViewerResults = [];
+
+function sortResults(order) {
+    currentSortOrder = order;
+    document.getElementById('sort-newest').classList.toggle('active', order === 'newest');
+    document.getElementById('sort-oldest').classList.toggle('active', order === 'oldest');
+    if (cachedViewerResults.length) {
+        renderViewerResults(cachedViewerResults);
+    }
+}
+function setViewerDatePreset(preset) {
+    var now = new Date();
+    var fmt = function(d) { return d.toISOString().slice(0, 10); };
+    var from, to;
+    if (preset === 'today') { from = to = fmt(now); }
+    else if (preset === 'yesterday') { var y = new Date(now); y.setDate(y.getDate() - 1); from = to = fmt(y); }
+    else if (preset === 'week') { var d = new Date(now); d.setDate(d.getDate() - 6); from = fmt(d); to = fmt(now); }
+    else if (preset === 'month') { from = fmt(now).slice(0, 8) + '01'; to = fmt(now); }
+    document.getElementById('viewer-date-from').value = from;
+    document.getElementById('viewer-date-to').value = to;
+    loadResults(currentResultFilter, currentResultSort);
+}
+function clearViewerDateFilter() {
+    document.getElementById('viewer-date-from').value = '';
+    document.getElementById('viewer-date-to').value = '';
+    loadResults(currentResultFilter, currentResultSort);
+}
+
 async function loadResults(filter, sort, btn) {
+    if (filter) currentResultFilter = filter;
+    if (sort) currentResultSort = sort;
     if (btn) {
         btn.parentElement.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
         btn.classList.add('active');
     }
     var el = document.getElementById('result-list');
+    var dateFrom = document.getElementById('viewer-date-from').value;
+    var dateTo = document.getElementById('viewer-date-to').value;
     try {
-        var resp = await fetch('/api/tracking/list?filter=' + filter + '&sort=' + sort + '&limit=100');
+        var url = '/api/tracking/list?filter=' + currentResultFilter + '&sort=' + currentResultSort + '&limit=200';
+        if (dateFrom) url += '&date_from=' + dateFrom;
+        if (dateTo) url += '&date_to=' + dateTo;
+        var resp = await fetch(url);
         var rows = await resp.json();
         if (!rows.length || rows.error) { el.innerHTML = '<div class="empty">データなし</div>'; return; }
-
-        // 統計サマリー
-        var decided = rows.filter(function(r) { return r.result === 'WIN' || r.result === 'LOSS'; });
-        var winCount = decided.filter(function(r) { return r.result === 'WIN'; }).length;
-        var lossCount = decided.length - winCount;
-        var pendingCount = rows.filter(function(r) { return r.result === 'PENDING'; }).length;
-        var winRate = decided.length > 0 ? Math.round(winCount / decided.length * 100) : 0;
-        var gains = decided.map(function(r) { return r.max_gain_pct || 0; });
-        var avgGain = gains.length > 0 ? gains.reduce(function(a,b) { return a+b; }, 0) / gains.length : 0;
-        var winGains = decided.filter(function(r) { return r.result === 'WIN'; }).map(function(r) { return r.max_gain_pct || 0; });
-        var avgWinGain = winGains.length > 0 ? winGains.reduce(function(a,b) { return a+b; }, 0) / winGains.length : 0;
-        var allGains = rows.filter(function(r) { return r.max_gain_pct != null; }).map(function(r) { return r.max_gain_pct; });
-        var maxGainAll = allGains.length > 0 ? Math.max.apply(null, allGains) : 0;
-
-        var wrColor = winRate >= 70 ? '#00e5a0' : winRate >= 50 ? '#ffaa00' : '#ff4560';
-        var statsHtml = '<div style="padding:10px 12px;background:linear-gradient(135deg,#0d1b2e,#121a2e);border-bottom:2px solid #1a2840;">' +
-            '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">' +
-            '<span style="font-size:12px;color:#6880a0;">検知 <b style="color:#c8d8f0;">' + rows.length + '</b>件</span>' +
-            '<span style="font-size:12px;color:#6880a0;">判定済 <b style="color:#c8d8f0;">' + decided.length + '</b>件</span>' +
-            '<span style="font-size:12px;color:#6880a0;">追跡中 <b style="color:#3d9eff;">' + pendingCount + '</b>件</span>' +
-            '</div>' +
-            '<div style="display:flex;gap:10px;flex-wrap:wrap;">' +
-            '<div style="text-align:center;padding:6px 12px;background:#0a1220;border-radius:6px;min-width:70px;">' +
-            '<div style="font-size:20px;font-weight:900;color:' + wrColor + ';">' + winRate + '%</div>' +
-            '<div style="font-size:9px;color:#6880a0;">成功率 (' + winCount + '勝' + lossCount + '敗)</div></div>' +
-            '<div style="text-align:center;padding:6px 12px;background:#0a1220;border-radius:6px;min-width:70px;">' +
-            '<div style="font-size:20px;font-weight:900;color:' + (avgGain >= 0 ? '#00e5a0' : '#ff4560') + ';">' + (avgGain >= 0 ? '+' : '') + avgGain.toFixed(1) + '%</div>' +
-            '<div style="font-size:9px;color:#6880a0;">平均最大上昇</div></div>' +
-            '<div style="text-align:center;padding:6px 12px;background:#0a1220;border-radius:6px;min-width:70px;">' +
-            '<div style="font-size:20px;font-weight:900;color:#00e5a0;">+' + avgWinGain.toFixed(1) + '%</div>' +
-            '<div style="font-size:9px;color:#6880a0;">成功時の平均</div></div>' +
-            '<div style="text-align:center;padding:6px 12px;background:#0a1220;border-radius:6px;min-width:70px;">' +
-            '<div style="font-size:20px;font-weight:900;color:#ff0066;">+' + maxGainAll.toFixed(0) + '%</div>' +
-            '<div style="font-size:9px;color:#6880a0;">最大上昇</div></div>' +
-            '</div></div>';
-
-        var rl = {'WIN':'成功(+25%到達)','LOSS':'ハズレ','PENDING':'追跡中(7日)'};
-        var tl2 = {'VOLUME_SPIKE':'出来高','VOLUME_RISING':'じわ上げ','INSIDER_BUY':'内部者','COMBINED':'複合','PRICE_SPIKE':'急騰','PREMARKET':'PM','ACCUMULATION':'買集め','VOL_REVERSAL':'底打ち','SQUEEZE_SETUP':'前兆','SOCIAL_BUZZ':'Reddit','SOCIAL_VOLUME':'Reddit+Vol'};
-
-        function pctHtml(v) {
-            if (v == null) return '<span class="pct-flat">---</span>';
-            var c = v >= 50 ? 'pct-big' : v >= 10 ? 'pct-up' : v > 0 ? 'pct-up' : 'pct-down';
-            return '<span class="' + c + '">' + (v >= 0 ? '+' : '') + v.toFixed(1) + '%</span>';
-        }
-        function calcRating(r) {
-            var stars = 0, mg = r.max_gain_pct || 0;
-            if (mg >= 50) stars += 3; else if (mg >= 20) stars += 2; else if (mg >= 10) stars += 1;
-            if ((r.score||0) >= 35) stars += 1;
-            if (r.float_level === 'ULTRA_LOW') stars += 1;
-            if ((r.volume_ratio||0) >= 10) stars += 1;
-            if ((r.alert_price_change||0) >= 20) stars -= 1;
-            return Math.max(0, Math.min(5, stars));
-        }
-
-        el.innerHTML = statsHtml + rows.map(function (r) {
-            var mg = r.max_gain_pct;
-            var date = (r.created_at || '').slice(5, 16) + ' JST';
-            var company = (r.company_name || '').trim();
-            var typeName = tl2[r.alert_type] || r.alert_type || '';
-            var fl = r.float_level || '';
-            var rating = calcRating(r);
-            var c1d = r.change_1d_pct;
-            var alreadyUp = r.alert_price_change || 0;
-
-            // 星レーティング
-            var starsHtml = '';
-            if (rating > 0) {
-                var s = '';
-                for (var i = 0; i < 5; i++) s += i < rating ? '\u2605' : '\u2606';
-                starsHtml = '<span style="font-size:12px;color:#ffaa00;letter-spacing:1px;">' + s + '</span>';
-            }
-
-            // フロートバッジ
-            var floatHtml = '';
-            if (fl === 'ULTRA_LOW') floatHtml = '<span style="font-size:9px;padding:1px 6px;border-radius:4px;background:#ff006620;color:#ff0066;">超低フロート</span>';
-            else if (fl === 'LOW') floatHtml = '<span style="font-size:9px;padding:1px 6px;border-radius:4px;background:#ff660020;color:#ff6600;">低フロート</span>';
-
-            // 上昇バー
-            var gainBar = '';
-            if (mg != null) {
-                var barW = Math.min(Math.max(mg, 0), 200) / 2;
-                var barColor = mg >= 50 ? '#ff0066' : mg >= 20 ? '#ff6600' : mg >= 10 ? '#ffaa00' : mg > 0 ? '#00e5a050' : '#ff456030';
-                gainBar = '<div style="display:flex;align-items:center;gap:6px;margin-top:6px;">' +
-                    '<span style="font-size:10px;color:#4a6080;min-width:50px;">最大上昇</span>' +
-                    '<div style="flex:1;height:18px;background:#0a1220;border-radius:3px;overflow:hidden;position:relative;">' +
-                    '<div style="width:' + barW + '%;height:100%;background:' + barColor + ';border-radius:3px;"></div>' +
-                    '<span style="position:absolute;left:4px;top:1px;font-size:12px;font-weight:700;color:#fff;">' + (mg >= 0 ? '+' : '') + mg.toFixed(1) + '%</span>' +
-                    '</div>' +
-                    (r.max_price_7d ? '<span style="font-size:12px;font-weight:700;color:' + (mg >= 25 ? '#00e5a0' : '#ff6600') + ';">$' + r.max_price_7d.toFixed(3) + '</span>' : '') +
-                    (r.max_price_date ? '<span style="font-size:10px;color:#6880a0;">(' + r.max_price_date + ')</span>' : '') +
-                    '</div>';
-            }
-
-            // ボーダーカラー
-            var borderStyle = rating >= 3 ? 'border-left:3px solid #ff6600;' : rating >= 2 ? 'border-left:3px solid #ffaa00;' : '';
-
-            return '<div class="result-card" style="' + borderStyle + '">' +
-                '<div class="result-top">' +
-                '<span class="result-badge ' + r.result + '">' + (rl[r.result] || r.result) + '</span>' +
-                '<a href="/stock/' + r.ticker + '" style="font-size:16px;font-weight:700;color:#3d9eff;text-decoration:none;">$' + r.ticker + '</a>' +
-                floatHtml + ' ' + starsHtml +
-                '<span style="font-size:10px;color:#4a6080;margin-left:auto;">' + date + '</span>' +
-                '</div>' +
-                '<div class="result-meta">' +
-                '<span>' + company + '</span>' +
-                '<span>' + typeName + '</span>' +
-                (r.volume_ratio ? '<span>出来高 <b style="color:#ff6600;">' + r.volume_ratio.toFixed(1) + 'x</b></span>' : '') +
-                '<span>スコア <b style="color:#ffaa00;">' + (r.score || 0) + '</b></span>' +
-                (alreadyUp > 5 ? '<span style="color:#ff4560;">検知時+' + alreadyUp.toFixed(0) + '%</span>' : '') +
-                '</div>' +
-                '<div style="display:flex;gap:6px;align-items:center;margin:6px 0;padding:6px 8px;background:#0a1220;border-radius:4px;flex-wrap:wrap;">' +
-                '<div style="text-align:center;min-width:65px;">' +
-                '<div style="font-size:10px;color:#4a6080;">検知価格</div>' +
-                '<div style="font-size:15px;font-weight:700;color:#c8d8f0;">$' + (r.entry_price || 0).toFixed(3) + '</div></div>' +
-                '<span style="color:#4a6080;font-size:16px;">\u2192</span>' +
-                '<div style="text-align:center;min-width:55px;">' +
-                '<div style="font-size:10px;color:#4a6080;">1日後</div>' +
-                '<div style="font-size:15px;font-weight:700;">' + pctHtml(c1d) + '</div></div>' +
-                '<div style="text-align:center;min-width:55px;">' +
-                '<div style="font-size:10px;color:#4a6080;">3日後</div>' +
-                '<div style="font-size:15px;font-weight:700;">' + pctHtml(r.change_3d_pct) + '</div></div>' +
-                '<div style="text-align:center;min-width:55px;">' +
-                '<div style="font-size:10px;color:#4a6080;">7日後</div>' +
-                '<div style="font-size:15px;font-weight:700;">' + pctHtml(r.change_7d_pct) + '</div></div>' +
-                (r.max_price_7d ? '<div style="text-align:center;min-width:75px;margin-left:auto;">' +
-                '<div style="font-size:10px;color:#4a6080;">最高値</div>' +
-                '<div style="font-size:15px;font-weight:900;color:' + ((mg||0) >= 25 ? '#00e5a0' : '#ff6600') + ';">$' + r.max_price_7d.toFixed(3) + '</div></div>' : '') +
-                '</div>' +
-                gainBar +
-                '</div>';
-        }).join('');
+        cachedViewerResults = rows;
+        renderViewerResults(rows);
     } catch (e) { el.innerHTML = '<div class="empty">エラー</div>'; }
+}
+
+function viewerPctHtml(v) {
+    if (v == null) return '<span class="pct-flat">---</span>';
+    var c = v >= 50 ? 'pct-big' : v >= 10 ? 'pct-up' : v > 0 ? 'pct-up' : 'pct-down';
+    return '<span class="' + c + '">' + (v >= 0 ? '+' : '') + v.toFixed(1) + '%</span>';
+}
+function viewerCalcRating(r) {
+    var stars = 0, mg = r.max_gain_pct || 0;
+    if (mg >= 50) stars += 3; else if (mg >= 20) stars += 2; else if (mg >= 10) stars += 1;
+    if ((r.score||0) >= 35) stars += 1;
+    if (r.float_level === 'ULTRA_LOW') stars += 1;
+    if ((r.volume_ratio||0) >= 10) stars += 1;
+    if ((r.alert_price_change||0) >= 20) stars -= 1;
+    return Math.max(0, Math.min(5, stars));
+}
+
+function renderViewerResults(rows) {
+    var el = document.getElementById('result-list');
+    // ソート順を適用
+    var sorted = rows.slice();
+    if (currentSortOrder === 'oldest') {
+        sorted.sort(function(a, b) { return (a.created_at || '').localeCompare(b.created_at || ''); });
+    } else {
+        sorted.sort(function(a, b) { return (b.created_at || '').localeCompare(a.created_at || ''); });
+    }
+
+    // 統計サマリー
+    var decided = sorted.filter(function(r) { return r.result === 'WIN' || r.result === 'LOSS' || r.result === 'BIG_WIN' || r.result === 'SMALL_WIN'; });
+    var winCount = decided.filter(function(r) { return r.result === 'WIN' || r.result === 'BIG_WIN' || r.result === 'SMALL_WIN'; }).length;
+    var lossCount = decided.length - winCount;
+    var pendingCount = sorted.filter(function(r) { return r.result === 'PENDING'; }).length;
+    var winRate = decided.length > 0 ? Math.round(winCount / decided.length * 100) : 0;
+    var gains = decided.map(function(r) { return r.max_gain_pct || 0; });
+    var avgGain = gains.length > 0 ? gains.reduce(function(a,b) { return a+b; }, 0) / gains.length : 0;
+    var winGains = decided.filter(function(r) { return r.result === 'WIN' || r.result === 'BIG_WIN' || r.result === 'SMALL_WIN'; }).map(function(r) { return r.max_gain_pct || 0; });
+    var avgWinGain = winGains.length > 0 ? winGains.reduce(function(a,b) { return a+b; }, 0) / winGains.length : 0;
+    var allGains = sorted.filter(function(r) { return r.max_gain_pct != null; }).map(function(r) { return r.max_gain_pct; });
+    var maxGainAll = allGains.length > 0 ? Math.max.apply(null, allGains) : 0;
+
+    var wrColor = winRate >= 70 ? '#00e5a0' : winRate >= 50 ? '#ffaa00' : '#ff4560';
+    var statsHtml = '<div style="padding:10px 12px;background:linear-gradient(135deg,#0d1b2e,#121a2e);border-bottom:2px solid #1a2840;">' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">' +
+        '<span style="font-size:12px;color:#6880a0;">検知 <b style="color:#c8d8f0;">' + sorted.length + '</b>件</span>' +
+        '<span style="font-size:12px;color:#6880a0;">判定済 <b style="color:#c8d8f0;">' + decided.length + '</b>件</span>' +
+        '<span style="font-size:12px;color:#6880a0;">追跡中 <b style="color:#3d9eff;">' + pendingCount + '</b>件</span>' +
+        '</div>' +
+        '<div style="display:flex;gap:10px;flex-wrap:wrap;">' +
+        '<div style="text-align:center;padding:6px 12px;background:#0a1220;border-radius:6px;min-width:70px;">' +
+        '<div style="font-size:20px;font-weight:900;color:' + wrColor + ';">' + winRate + '%</div>' +
+        '<div style="font-size:9px;color:#6880a0;">成功率 (' + winCount + '勝' + lossCount + '敗)</div></div>' +
+        '<div style="text-align:center;padding:6px 12px;background:#0a1220;border-radius:6px;min-width:70px;">' +
+        '<div style="font-size:20px;font-weight:900;color:' + (avgGain >= 0 ? '#00e5a0' : '#ff4560') + ';">' + (avgGain >= 0 ? '+' : '') + avgGain.toFixed(1) + '%</div>' +
+        '<div style="font-size:9px;color:#6880a0;">平均最大上昇</div></div>' +
+        '<div style="text-align:center;padding:6px 12px;background:#0a1220;border-radius:6px;min-width:70px;">' +
+        '<div style="font-size:20px;font-weight:900;color:#00e5a0;">+' + avgWinGain.toFixed(1) + '%</div>' +
+        '<div style="font-size:9px;color:#6880a0;">成功時の平均</div></div>' +
+        '<div style="text-align:center;padding:6px 12px;background:#0a1220;border-radius:6px;min-width:70px;">' +
+        '<div style="font-size:20px;font-weight:900;color:#ff0066;">+' + maxGainAll.toFixed(0) + '%</div>' +
+        '<div style="font-size:9px;color:#6880a0;">最大上昇</div></div>' +
+        '</div></div>';
+
+    var rl = {'WIN':'成功(+25%到達)','BIG_WIN':'成功','SMALL_WIN':'成功','LOSS':'ハズレ','PENDING':'追跡中(7日)'};
+    var tl2 = {'VOLUME_SPIKE':'出来高','VOLUME_RISING':'じわ上げ','INSIDER_BUY':'内部者','COMBINED':'複合','PRICE_SPIKE':'急騰','PREMARKET':'PM','ACCUMULATION':'買集め','VOL_REVERSAL':'底打ち','SQUEEZE_SETUP':'前兆','SOCIAL_BUZZ':'Reddit','SOCIAL_VOLUME':'Reddit+Vol'};
+
+    el.innerHTML = statsHtml + sorted.map(function (r) {
+        var mg = r.max_gain_pct;
+        var date = (r.created_at || '').slice(5, 16) + ' JST';
+        var company = (r.company_name || '').trim();
+        var typeName = tl2[r.alert_type] || r.alert_type || '';
+        var fl = r.float_level || '';
+        var rating = viewerCalcRating(r);
+        var c1d = r.change_1d_pct;
+        var alreadyUp = r.alert_price_change || 0;
+
+        // 星レーティング
+        var starsHtml = '';
+        if (rating > 0) {
+            var s = '';
+            for (var i = 0; i < 5; i++) s += i < rating ? '\u2605' : '\u2606';
+            starsHtml = '<span style="font-size:12px;color:#ffaa00;letter-spacing:1px;">' + s + '</span>';
+        }
+
+        // フロートバッジ
+        var floatHtml = '';
+        if (fl === 'ULTRA_LOW') floatHtml = '<span style="font-size:9px;padding:1px 6px;border-radius:4px;background:#ff006620;color:#ff0066;">超低フロート</span>';
+        else if (fl === 'LOW') floatHtml = '<span style="font-size:9px;padding:1px 6px;border-radius:4px;background:#ff660020;color:#ff6600;">低フロート</span>';
+
+        // 上昇バー
+        var gainBar = '';
+        if (mg != null) {
+            var barW = Math.min(Math.max(mg, 0), 200) / 2;
+            var barColor = mg >= 50 ? '#ff0066' : mg >= 20 ? '#ff6600' : mg >= 10 ? '#ffaa00' : mg > 0 ? '#00e5a050' : '#ff456030';
+            gainBar = '<div style="display:flex;align-items:center;gap:6px;margin-top:6px;">' +
+                '<span style="font-size:10px;color:#4a6080;min-width:50px;">最大上昇</span>' +
+                '<div style="flex:1;height:18px;background:#0a1220;border-radius:3px;overflow:hidden;position:relative;">' +
+                '<div style="width:' + barW + '%;height:100%;background:' + barColor + ';border-radius:3px;"></div>' +
+                '<span style="position:absolute;left:4px;top:1px;font-size:12px;font-weight:700;color:#fff;">' + (mg >= 0 ? '+' : '') + mg.toFixed(1) + '%</span>' +
+                '</div>' +
+                (r.max_price_7d ? '<span style="font-size:12px;font-weight:700;color:' + (mg >= 25 ? '#00e5a0' : '#ff6600') + ';">$' + r.max_price_7d.toFixed(3) + '</span>' : '') +
+                (r.max_price_date ? '<span style="font-size:10px;color:#6880a0;">(' + r.max_price_date + ')</span>' : '') +
+                '</div>';
+        }
+
+        // ボーダーカラー
+        var borderStyle = rating >= 3 ? 'border-left:3px solid #ff6600;' : rating >= 2 ? 'border-left:3px solid #ffaa00;' : '';
+
+        return '<div class="result-card" style="' + borderStyle + '">' +
+            '<div class="result-top">' +
+            '<span class="result-badge ' + r.result + '">' + (rl[r.result] || r.result) + '</span>' +
+            '<a href="/stock/' + r.ticker + '" style="font-size:16px;font-weight:700;color:#3d9eff;text-decoration:none;">$' + r.ticker + '</a>' +
+            floatHtml + ' ' + starsHtml +
+            '<span style="font-size:10px;color:#4a6080;margin-left:auto;">' + date + '</span>' +
+            '</div>' +
+            '<div class="result-meta">' +
+            '<span>' + company + '</span>' +
+            '<span>' + typeName + '</span>' +
+            (r.volume_ratio ? '<span>出来高 <b style="color:#ff6600;">' + r.volume_ratio.toFixed(1) + 'x</b></span>' : '') +
+            '<span>スコア <b style="color:#ffaa00;">' + (r.score || 0) + '</b></span>' +
+            (alreadyUp > 5 ? '<span style="color:#ff4560;">検知時+' + alreadyUp.toFixed(0) + '%</span>' : '') +
+            '</div>' +
+            '<div style="display:flex;gap:6px;align-items:center;margin:6px 0;padding:6px 8px;background:#0a1220;border-radius:4px;flex-wrap:wrap;">' +
+            '<div style="text-align:center;min-width:65px;">' +
+            '<div style="font-size:10px;color:#4a6080;">検知価格</div>' +
+            '<div style="font-size:15px;font-weight:700;color:#c8d8f0;">$' + (r.entry_price || 0).toFixed(3) + '</div></div>' +
+            '<span style="color:#4a6080;font-size:16px;">\u2192</span>' +
+            '<div style="text-align:center;min-width:55px;">' +
+            '<div style="font-size:10px;color:#4a6080;">1日後</div>' +
+            '<div style="font-size:15px;font-weight:700;">' + viewerPctHtml(c1d) + '</div></div>' +
+            '<div style="text-align:center;min-width:55px;">' +
+            '<div style="font-size:10px;color:#4a6080;">3日後</div>' +
+            '<div style="font-size:15px;font-weight:700;">' + viewerPctHtml(r.change_3d_pct) + '</div></div>' +
+            '<div style="text-align:center;min-width:55px;">' +
+            '<div style="font-size:10px;color:#4a6080;">7日後</div>' +
+            '<div style="font-size:15px;font-weight:700;">' + viewerPctHtml(r.change_7d_pct) + '</div></div>' +
+            (r.max_price_7d ? '<div style="text-align:center;min-width:75px;margin-left:auto;">' +
+            '<div style="font-size:10px;color:#4a6080;">最高値</div>' +
+            '<div style="font-size:15px;font-weight:900;color:' + ((mg||0) >= 25 ? '#00e5a0' : '#ff6600') + ';">$' + r.max_price_7d.toFixed(3) + '</div></div>' : '') +
+            '</div>' +
+            gainBar +
+            '</div>';
+    }).join('');
 }
 
 // Iron patterns
@@ -751,6 +828,10 @@ document.addEventListener('click', function (e) {
     if (!e.target.closest('#search-input') && !e.target.closest('#search-results'))
         document.getElementById('search-results').style.display = 'none';
 });
+
+// Date filter event listeners
+document.getElementById('viewer-date-from').addEventListener('change', function() { loadResults(currentResultFilter, currentResultSort); });
+document.getElementById('viewer-date-to').addEventListener('change', function() { loadResults(currentResultFilter, currentResultSort); });
 
 // Init
 loadStats();

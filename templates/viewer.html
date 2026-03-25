@@ -199,10 +199,11 @@
             <div class="section-header">
                 <span class="section-title">検知後の結果</span>
                 <div class="tab-group">
-                    <button class="tab-btn active" onclick="loadResults('all','date',this)">新着順</button>
+                    <button class="tab-btn active" onclick="loadResults('all',currentResultSort,this)">新着順</button>
                     <button class="tab-btn" onclick="loadResults('top','gain',this)">上昇率順</button>
-                    <button class="tab-btn" style="color:#00e5a0;" onclick="loadResults('win','date',this)">成功</button>
-                    <button class="tab-btn" style="color:#ff4560;" onclick="loadResults('lose','date',this)">ハズレ</button>
+                    <button class="tab-btn" onclick="loadResults('pending',currentResultSort,this)">追跡中</button>
+                    <button class="tab-btn" style="color:#00e5a0;" onclick="loadResults('win',currentResultSort,this)">成功</button>
+                    <button class="tab-btn" style="color:#ff4560;" onclick="loadResults('lose',currentResultSort,this)">ハズレ</button>
                 </div>
             </div>
             <!-- ソートボタン -->

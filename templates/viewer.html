@@ -97,7 +97,7 @@
             ・本サービスは投資助言ではありません<br>
             ・掲載情報に基づく投資判断は自己責任です<br>
             ・過去の実績は将来の結果を保証しません<br>
-            ・表示される勝率やスコアは過去データに基づく参考値です<br>
+            ・表示される到達率やスコアは過去データに基づく参考値です<br>
         </div>
         <button class="modal-btn" onclick="acceptDisclaimer()">同意して閲覧する</button>
     </div>
@@ -113,6 +113,11 @@
             <div id="search-results"></div>
         </div>
     </div>
+</div>
+
+<!-- 免責事項バー（詳細） -->
+<div style="background:#1a1a2e;padding:8px 16px;text-align:center;font-size:11px;color:#666;border-bottom:1px solid #1a2840;">
+  ※ 本サービスは情報提供のみを目的としており、投資助言・投資推奨ではありません。投資判断は自己責任でお願いします。過去のデータは将来の成果を保証するものではありません。
 </div>
 
 <!-- 免責事項バー -->
@@ -134,7 +139,7 @@
         </div>
         <div class="stat-card">
             <div class="stat-value" id="stat-wr" style="color:#00e5a0;">-</div>
-            <div class="stat-label">的中率</div>
+            <div class="stat-label">条件到達率</div>
         </div>
         <div class="stat-card">
             <div class="stat-value" id="stat-avg" style="color:#00e5a0;">-</div>
@@ -156,7 +161,7 @@
             <div class="tab-group" id="main-tabs">
                 <button class="tab-btn active" onclick="switchTab('alerts',this)">検知アラート</button>
                 <button class="tab-btn" onclick="switchTab('results',this)">検知後の結果</button>
-                <button class="tab-btn" style="color:#ff0066;" onclick="switchTab('iron',this)">鉄板パターン</button>
+                <button class="tab-btn" style="color:#ff0066;" onclick="switchTab('iron',this)">注目パターン</button>
                 <button class="tab-btn" style="color:#3d9eff;" onclick="switchTab('guide',this)">使い方</button>
             </div>
         </div>
@@ -175,9 +180,9 @@
             <!-- 今日の鉄板 -->
             <div id="iron-today-section" style="display:none;">
                 <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:linear-gradient(90deg,#1a000a,#0d0a1a);border-bottom:1px solid #ff006640;">
-                    <span style="font-size:15px;font-weight:900;color:#ff0066;">今日の鉄板</span>
+                    <span style="font-size:15px;font-weight:900;color:#ff0066;">今日の注目</span>
                     <span id="iron-today-count" style="font-size:12px;color:#ff006699;"></span>
-                    <span style="font-size:10px;color:#ff006666;margin-left:auto;">勝率70%以上の条件に合致</span>
+                    <span style="font-size:10px;color:#ff006666;margin-left:auto;">過去到達率70%以上の条件に合致</span>
                 </div>
                 <div id="iron-today-list"></div>
             </div>
@@ -202,8 +207,8 @@
                     <button class="tab-btn active" onclick="loadResults('all',currentResultSort,this)">新着順</button>
                     <button class="tab-btn" onclick="loadResults('top','gain',this)">上昇率順</button>
                     <button class="tab-btn" onclick="loadResults('pending',currentResultSort,this)">追跡中</button>
-                    <button class="tab-btn" style="color:#00e5a0;" onclick="loadResults('win',currentResultSort,this)">成功</button>
-                    <button class="tab-btn" style="color:#ff4560;" onclick="loadResults('lose',currentResultSort,this)">ハズレ</button>
+                    <button class="tab-btn" style="color:#00e5a0;" onclick="loadResults('win',currentResultSort,this)">条件到達</button>
+                    <button class="tab-btn" style="color:#ff4560;" onclick="loadResults('lose',currentResultSort,this)">未到達</button>
                 </div>
             </div>
             <!-- 価格帯フィルタ -->
@@ -243,11 +248,11 @@
     <div id="page-iron" class="tab-page" style="display:none;">
         <div class="section">
             <div class="section-header" style="background:#1a0008;">
-                <span class="section-title" style="color:#ff0066;">鉄板パターン分析</span>
+                <span class="section-title" style="color:#ff0066;">注目パターン分析</span>
             </div>
             <div style="padding:10px 12px;font-size:12px;color:#8899b0;border-bottom:1px solid #1a2840;line-height:1.6;">
-                過去の実績から、<b style="color:#ff0066;">成功率70%以上</b>のパターンを分析しています。<br>
-                成功 = 検知価格から7日以内に+15%以上に到達。
+                過去の実績から、<b style="color:#ff0066;">条件到達率70%以上</b>のパターンを分析しています。<br>
+                条件到達 = 検知価格から7日以内に+15%以上に到達。
             </div>
             <div id="iron-patterns" style="max-height:600px;overflow-y:auto;">
                 <div class="empty">読み込み中...</div>
@@ -273,10 +278,10 @@
 
                 <!-- 今日の鉄板 -->
                 <div style="margin-bottom:12px;padding:12px;background:#1a000a;border:1px solid #ff006630;border-radius:8px;">
-                    <div style="font-size:14px;font-weight:700;color:#ff0066;margin-bottom:6px;">「今日の鉄板」とは？</div>
-                    過去のデータから<b style="color:#ff0066;">勝率70%以上</b>の条件に合致した銘柄です。<br>
-                    勝率が高い順に表示されるので、<b>上にある銘柄ほど過去の実績が良い</b>です。<br><br>
-                    <span style="color:#ff0066;">超鉄板 90%以上</span> ＞ <span style="color:#ff6600;">鉄板 80%以上</span> ＞ <span style="color:#ffaa00;">有望 70%以上</span>
+                    <div style="font-size:14px;font-weight:700;color:#ff0066;margin-bottom:6px;">「今日の注目」とは？</div>
+                    過去のデータから<b style="color:#ff0066;">過去到達率70%以上</b>の条件に合致した銘柄です。<br>
+                    到達率が高い順に表示されるので、<b>上にある銘柄ほど過去の実績が良い</b>です。<br><br>
+                    <span style="color:#ff0066;">最注目 90%以上</span> ＞ <span style="color:#ff6600;">注目 80%以上</span> ＞ <span style="color:#ffaa00;">有望 70%以上</span>
                 </div>
 
                 <!-- スコア -->
@@ -313,7 +318,7 @@
                         </tr>
                         <tr style="border-bottom:1px solid #1a2840;">
                             <td style="padding:6px;color:#ff6600;font-weight:700;white-space:nowrap;">Reddit+出来高</td>
-                            <td style="padding:6px;">Redditで話題になっており、かつ出来高も増加。過去勝率100%</td>
+                            <td style="padding:6px;">Redditで話題になっており、かつ出来高も増加。過去到達率100%</td>
                         </tr>
                         <tr style="border-bottom:1px solid #1a2840;">
                             <td style="padding:6px;color:#ff6600;font-weight:700;white-space:nowrap;">複合</td>
@@ -336,7 +341,7 @@
                         </tr>
                         <tr style="border-bottom:1px solid #1a2840;">
                             <td style="padding:6px;"><span style="padding:2px 8px;border-radius:4px;background:#ff456030;color:#ff4560;font-weight:700;">⚠金融</span></td>
-                            <td style="padding:6px;">金融・通信セクター。過去の勝率が低いため注意が必要</td>
+                            <td style="padding:6px;">金融・通信セクター。過去の到達率が低いため注意が必要</td>
                         </tr>
                         <tr>
                             <td style="padding:6px;white-space:nowrap;">超低フロート / 低フロート</td>
@@ -370,12 +375,12 @@
                             <td style="padding:6px;">$5以下の小型株。値動きが大きく、短期間で急騰する可能性がある</td>
                         </tr>
                         <tr style="border-bottom:1px solid #1a2840;">
-                            <td style="padding:6px;color:#ffaa00;font-weight:700;white-space:nowrap;">鉄板パターン</td>
-                            <td style="padding:6px;">過去データで勝率70%以上だった条件の組み合わせ</td>
+                            <td style="padding:6px;color:#ffaa00;font-weight:700;white-space:nowrap;">注目パターン</td>
+                            <td style="padding:6px;">過去データで到達率70%以上だった条件の組み合わせ</td>
                         </tr>
                         <tr style="border-bottom:1px solid #1a2840;">
-                            <td style="padding:6px;color:#ffaa00;font-weight:700;white-space:nowrap;">成功 / ハズレ</td>
-                            <td style="padding:6px;">検知後7日以内に+15%に到達=成功、届かない=ハズレ</td>
+                            <td style="padding:6px;color:#ffaa00;font-weight:700;white-space:nowrap;">条件到達 / 未到達</td>
+                            <td style="padding:6px;">検知後7日以内に+15%に到達=条件到達、届かない=未到達</td>
                         </tr>
                         <tr>
                             <td style="padding:6px;color:#ffaa00;font-weight:700;white-space:nowrap;">プレマーケット</td>
@@ -412,7 +417,7 @@
                 <div style="padding:12px;background:#ff456008;border:1px solid #ff456030;border-radius:8px;font-size:12px;line-height:1.8;">
                     ・本サービスは<b>情報提供のみ</b>を目的としています<br>
                     ・投資助言ではありません。投資判断は<b>自己責任</b>です<br>
-                    ・過去の勝率は将来の結果を保証しません<br>
+                    ・過去の到達率は将来の結果を保証しません<br>
                     ・ペニー株は値動きが大きく、<b>大きな損失が発生する可能性</b>があります<br>
                     ・必ず余裕資金の範囲内で投資してください
                 </div>
@@ -556,7 +561,7 @@ function alertCard(a) {
     if (isIron) {
         const wrColor = ironWr >= 90 ? '#ff0066' : ironWr >= 80 ? '#ff6600' : '#ffaa00';
         const wrBg = ironWr >= 90 ? '#ff006618' : ironWr >= 80 ? '#ff660015' : '#ffaa0012';
-        const wrLabel = ironWr >= 90 ? '超鉄板' : ironWr >= 80 ? '鉄板' : '有望';
+        const wrLabel = ironWr >= 90 ? '最注目' : ironWr >= 80 ? '注目' : '有望';
         cardStyle = 'border:1px solid ' + wrColor + '40;background:' + wrBg + ';border-radius:6px;margin:4px 0;';
         const repeatN = a.repeat_count || 0;
         const caution = a.caution_sector || '';
@@ -750,19 +755,19 @@ function renderViewerResults(rows) {
         '<div style="display:flex;gap:10px;flex-wrap:wrap;">' +
         '<div style="text-align:center;padding:6px 12px;background:#0a1220;border-radius:6px;min-width:70px;">' +
         '<div style="font-size:20px;font-weight:900;color:' + wrColor + ';">' + winRate + '%</div>' +
-        '<div style="font-size:9px;color:#6880a0;">成功率 (' + winCount + '勝' + lossCount + '敗)</div></div>' +
+        '<div style="font-size:9px;color:#6880a0;">条件到達率 (' + winCount + '到達' + lossCount + '未到達)</div></div>' +
         '<div style="text-align:center;padding:6px 12px;background:#0a1220;border-radius:6px;min-width:70px;">' +
         '<div style="font-size:20px;font-weight:900;color:' + (avgGain >= 0 ? '#00e5a0' : '#ff4560') + ';">' + (avgGain >= 0 ? '+' : '') + avgGain.toFixed(1) + '%</div>' +
         '<div style="font-size:9px;color:#6880a0;">平均最大上昇</div></div>' +
         '<div style="text-align:center;padding:6px 12px;background:#0a1220;border-radius:6px;min-width:70px;">' +
         '<div style="font-size:20px;font-weight:900;color:#00e5a0;">+' + avgWinGain.toFixed(1) + '%</div>' +
-        '<div style="font-size:9px;color:#6880a0;">成功時の平均</div></div>' +
+        '<div style="font-size:9px;color:#6880a0;">到達時の平均</div></div>' +
         '<div style="text-align:center;padding:6px 12px;background:#0a1220;border-radius:6px;min-width:70px;">' +
         '<div style="font-size:20px;font-weight:900;color:#ff0066;">+' + maxGainAll.toFixed(0) + '%</div>' +
         '<div style="font-size:9px;color:#6880a0;">最大上昇</div></div>' +
         '</div></div>';
 
-    var rl = {'WIN':'成功(+15%到達)','BIG_WIN':'成功','SMALL_WIN':'成功','LOSS':'ハズレ','PENDING':'追跡中(7日)'};
+    var rl = {'WIN':'+15%到達','BIG_WIN':'+25%到達','SMALL_WIN':'条件到達','LOSS':'未到達','PENDING':'追跡中'};
     var tl2 = {'VOLUME_SPIKE':'出来高','VOLUME_RISING':'じわ上げ','INSIDER_BUY':'内部者','COMBINED':'複合','PRICE_SPIKE':'急騰','PREMARKET':'PM','ACCUMULATION':'買集め','VOL_REVERSAL':'底打ち','SQUEEZE_SETUP':'前兆','SOCIAL_BUZZ':'Reddit','SOCIAL_VOLUME':'Reddit+Vol'};
 
     el.innerHTML = statsHtml + sorted.map(function (r) {
@@ -860,7 +865,7 @@ async function loadIronPatterns() {
                 '<span style="font-size:14px;font-weight:700;color:' + (p.win_rate >= 80 ? '#ff0066' : '#c8d8f0') + ';">' + p.name + '</span>' +
                 '<span style="font-size:12px;color:#6880a0;">' + p.total + '件</span></div>' +
                 '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">' +
-                '<span style="font-size:11px;color:#6880a0;min-width:45px;">成功率</span>' +
+                '<span style="font-size:11px;color:#6880a0;min-width:55px;">過去到達率</span>' +
                 '<div style="flex:1;height:14px;background:#0a1220;border-radius:3px;overflow:hidden;position:relative;">' +
                 '<div style="width:' + barW + '%;height:100%;background:' + barColor + ';border-radius:3px;"></div>' +
                 '<span style="position:absolute;left:6px;top:0;font-size:11px;font-weight:700;color:#fff;">' + p.win_rate + '%</span></div></div>' +

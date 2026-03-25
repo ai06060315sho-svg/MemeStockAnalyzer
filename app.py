@@ -997,10 +997,20 @@ def api_alerts_filtered():
         conn.close()
 
 
+# 経済指標キャッシュ（外部API呼び出しを10分間キャッシュ）
+_economic_cache = {'data': None, 'time': 0}
+
+
 @app.route('/api/economic')
 def api_economic():
-    """経済指標の現在値を取得"""
+    """経済指標の現在値を取得（10分キャッシュ）"""
+    now = time.time()
+    if _economic_cache['data'] is not None and now - _economic_cache['time'] < 600:
+        return jsonify(_economic_cache['data'])
+
     data = econ_monitor.get_all_current()
+    _economic_cache['data'] = data
+    _economic_cache['time'] = now
     return jsonify(data)
 
 
@@ -1791,6 +1801,12 @@ def background_scanner():
             else:
                 logger.info(f"市場時間外 "
                             f"(JST {now_jst.strftime('%H:%M')} / ET {now_et.strftime('%H:%M')})")
+
+            # 結果追跡を独立して実行（スキャン失敗時や市場時間外でも動作）
+            try:
+                tracker.track_pending()
+            except Exception as te:
+                logger.error(f"[Tracker] Independent tracking error: {te}")
 
         except Exception as e:
             logger.error(f"Background error: {e}")

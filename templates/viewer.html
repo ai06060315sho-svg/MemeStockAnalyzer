@@ -656,6 +656,18 @@ async function loadResults(filter, sort, btn) {
         } else if (currentResultFilter === 'top') {
             rows = rows.filter(function(r) { return r.max_gain_pct != null; });
         }
+        // 同じティッカーの重複を除去（最大上昇率が高い方を残す）
+        var seen = {};
+        rows = rows.filter(function(r) {
+            var t = r.ticker;
+            if (!seen[t] || (r.max_gain_pct || 0) > (seen[t].max_gain_pct || 0)) {
+                seen[t] = r;
+                return true;
+            }
+            return false;
+        });
+        // seenに残った最良のもので再構築
+        rows = Object.values(seen);
         if (!rows.length) { el.innerHTML = '<div class="empty">データなし</div>'; return; }
         cachedViewerResults = rows;
         renderViewerResults(rows);

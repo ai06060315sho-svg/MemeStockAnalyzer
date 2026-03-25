@@ -104,6 +104,16 @@ class ResultTracker:
                 'max_price_7d': None, 'max_gain_pct': None, 'result': 'PENDING',
             }
 
+            # === 株式併合（リバーススプリット）検出 ===
+            # 1日で+100%以上かつ出来高が激減 → 併合の可能性が高い
+            # または、DBのhas_reverse_splitフラグがTrue
+            if record.get('has_reverse_split'):
+                result_data['result'] = 'REVERSE_SPLIT'
+                logger.info(f"{ticker}: REVERSE_SPLIT flagged - skipping")
+                self.db.update_tracking(record['id'], result_data)
+                updated += 1
+                continue
+
             # 日付ベースで価格を取得
             try:
                 alert_datetime = pd.Timestamp(alert_date)
@@ -158,6 +168,37 @@ class ResultTracker:
                 logger.error(f"{ticker}: price tracking error: {e}")
                 continue
 
+            # === 株式併合チェック（価格ベース） ===
+            # 1日で+200%以上の急騰 → 併合チェック
+            change_1d = result_data.get('change_1d_pct') or 0
+            if change_1d >= 200:
+                # 出来高チェック（併合後は出来高が急減することが多い）
+                try:
+                    vol_data = yf.download(ticker, period='10d', progress=False, threads=False)
+                    if not vol_data.empty and 'Volume' in vol_data.columns:
+                        vols = vol_data['Volume'].dropna().values
+                        if len(vols) >= 3:
+                            recent_vol = vols[-1] if vols[-1] > 0 else 1
+                            avg_vol = sum(vols[:-1]) / max(len(vols)-1, 1) if len(vols) > 1 else recent_vol
+                            vol_ratio = recent_vol / avg_vol if avg_vol > 0 else 1
+                            # 出来高が1/5以下に急減 → 併合の可能性大
+                            if vol_ratio < 0.2:
+                                result_data['result'] = 'REVERSE_SPLIT'
+                                logger.info(f"{ticker}: Suspected reverse split (1d +{change_1d:.0f}%, vol ratio {vol_ratio:.2f})")
+                                self.db.update_tracking(record['id'], result_data)
+                                updated += 1
+                                continue
+                except Exception as e:
+                    logger.error(f"{ticker}: reverse split check error: {e}")
+
+                # 出来高チェックができなくても+500%以上は併合と判断
+                if change_1d >= 500:
+                    result_data['result'] = 'REVERSE_SPLIT'
+                    logger.info(f"{ticker}: Extreme gain +{change_1d:.0f}% - likely reverse split")
+                    self.db.update_tracking(record['id'], result_data)
+                    updated += 1
+                    continue
+
             # === 結果判定 ===
             # 基準: 検知価格から1度でも+25%に到達 → 成功（利益機会あり）
             #       7日間で+25%に1度も届かない → ハズレ
@@ -199,3 +240,8 @@ class ResultTracker:
                 f['win_rate'] = round(f['wins'] / f['n'] * 100, 1)
 
         return stats
+
+
+# 既存の誤判定を修正するSQL（必要に応じて実行）:
+# UPDATE alert_results SET result = 'REVERSE_SPLIT' WHERE ticker = 'JDZG' AND result = 'WIN';
+# UPDATE alert_results SET result = 'REVERSE_SPLIT' WHERE change_1d_pct >= 500 AND result = 'WIN';

@@ -572,13 +572,17 @@ def api_tracking_list():
         """, params).fetchall()
         rows = [dict(r) for r in rows]
 
-        # 重複除去: 同一銘柄は最もmax_gain_pctが高いものだけ残す
+        # 重複除去: 同一銘柄は最もmax_gain_pctが高い1件だけ残す
         seen = {}
         for r in rows:
             t = r['ticker']
-            g = r.get('max_gain_pct') or -999
-            if t not in seen or g > (seen[t].get('max_gain_pct') or -999):
+            if t not in seen:
                 seen[t] = r
+            else:
+                g = r.get('max_gain_pct') or -999
+                prev_g = seen[t].get('max_gain_pct') or -999
+                if g > prev_g:
+                    seen[t] = r
         rows = list(seen.values())
         # 元のソート順を維持
         if sort == 'gain':
